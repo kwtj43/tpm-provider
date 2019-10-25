@@ -1,0 +1,6 @@
+/out
+go.sum
+*.log
+cover.*
+NVChip*
+*.test
