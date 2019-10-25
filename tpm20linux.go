@@ -99,7 +99,7 @@ func (t *Tpm20Linux) Unbind(certifiedKey *CertifiedKey, keySecret []byte, encryp
 	rc := C.Unbind(t.tpmCtx,
 					(*C.char)(unsafe.Pointer(&keySecret[0])), 
 					C.size_t(len(keySecret)),
-					(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey)), 
+					(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])), 
 					C.size_t(len(certifiedKey.PublicKey)),
 					(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])), 
 					C.size_t(len(certifiedKey.PrivateKey)),

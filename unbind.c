@@ -40,11 +40,14 @@ int Unbind(tpmCtx* ctx,
 
     *decryptedDataLength = 0;
 
+    //---------------------------------------------------------------------------------------------
+    // Setup parameters and call Tss2_Sys_Load
+    //---------------------------------------------------------------------------------------------
     offset = 0;
     rval = Tss2_MU_TPM2B_PUBLIC_Unmarshal(publicKeyBytes, publicKeyBytesLength, &offset, &inPublic);
     if (rval != TSS2_RC_SUCCESS)
     {
-        ERROR("Tss2_MU_TPM2B_PUBLIC_Unmarshal returned error code: %x", rval);
+        ERROR("Tss2_MU_TPM2B_PUBLIC_Unmarshal returned error code: 0x%x", rval);
         return rval;
     }
 
@@ -52,9 +55,14 @@ int Unbind(tpmCtx* ctx,
     rval = Tss2_MU_TPM2B_PRIVATE_Unmarshal(privateKeyBytes, privateKeyBytesLength, &offset, &inPrivate);
     if (rval != TSS2_RC_SUCCESS)
     {
-        ERROR("Tss2_MU_TPM2B_PRIVATE_Unmarshal returned error code: %x", rval);
+        ERROR("Tss2_MU_TPM2B_PRIVATE_Unmarshal returned error code: 0x%x", rval);
         return rval;
     }
+
+    sessionData.count = 1;
+    sessionData.auths[0].sessionHandle = TPM2_RS_PW;
+
+    name.size = sizeof(name) - 2;
 
     rval = Tss2_Sys_Load(ctx->sys, 
                             TPM_HANDLE_PRIMARY, 
@@ -63,25 +71,31 @@ int Unbind(tpmCtx* ctx,
                             &inPublic,
                             &bindingKeyHandle,
                             &name,
-                            &sessionsDataOut);
+                            NULL);
 
     if (rval != TSS2_RC_SUCCESS)
     {
-        ERROR("Tss2_Sys_Load returned error code: %x", rval);
+        ERROR("Tss2_Sys_Load returned error code: 0x%x", rval);
         return rval;
     }
 
+    //---------------------------------------------------------------------------------------------
+    // Setup parameters and call Tss2_Sys_RSA_Decrypt
+    //---------------------------------------------------------------------------------------------
+
     // key password
     authSession.count = 1;
-    memcpy(&authSession.auths[0].hmac, keySecret, keySecretLength);
     authSession.auths[0].hmac.size = keySecretLength;
+    memcpy(&authSession.auths[0].hmac.buffer, keySecret, keySecretLength);
 
     // encrypted data
     cipherText.size = encryptedBytesLength;
     memcpy(cipherText.buffer, encryptedBytes, encryptedBytesLength);
 
-    scheme.scheme = TPM2_ALG_OAEP;
+    scheme.scheme = TPM2_ALG_OAEP; // TPM2_ALG_RSASSA;
     scheme.details.oaep.hashAlg = TPM2_ALG_SHA256;
+
+    sessionsDataOut.count = 1;
 
     rval = Tss2_Sys_RSA_Decrypt(ctx->sys, 
                                 bindingKeyHandle, 
@@ -94,11 +108,15 @@ int Unbind(tpmCtx* ctx,
 
     if (rval != TSS2_RC_SUCCESS)
     {
-        ERROR("Tss2_Sys_RSA_Decrypt returned error code: %x", rval);
+        ERROR("Tss2_Sys_RSA_Decrypt returned error code: 0x%x", rval);
         return rval;
     }
 
     Tss2_Sys_FlushContext(ctx->sys, bindingKeyHandle);
+
+    //---------------------------------------------------------------------------------------------
+    // Allocate and copy data for the out parameters (decryptedData).  This will be free'd by go
+    //---------------------------------------------------------------------------------------------
     
     *decryptedData = (unsigned char*)calloc(message.size, 1);
     if (!decryptedData)

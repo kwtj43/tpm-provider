@@ -257,27 +257,27 @@ func TestCreateCertifiedKey(t *testing.T) {
 	assert.Equal(signingKey.Version, V20)
 }
 
-// func TestBindingKey(t *testing.T) {
+func TestBindingKey(t *testing.T) {
 
-// 	assert := assert.New(t)
+	assert := assert.New(t)
 
-// 	aikSecretKeyBytes, _ := hex.DecodeString(AikSecretKey)
-// 	certifiedKeySecretBytes, _ := hex.DecodeString(CertifiedKeySecret)
+	aikSecretKeyBytes, _ := hex.DecodeString(AikSecretKey)
+	certifiedKeySecretBytes, _ := hex.DecodeString(CertifiedKeySecret)
 
-// 	tpm, err := NewTpmProvider()
-// 	if assert.NoError(err) == false { return }
-// 	defer tpm.Close()
+	tpm, err := NewTpmProvider()
+	if assert.NoError(err) == false { return }
+	defer tpm.Close()
 
-// 	bindingKey, err := tpm.CreateBindingKey(certifiedKeySecretBytes, aikSecretKeyBytes)
-// 	if assert.NoError(err) == false { return }
+	bindingKey, err := tpm.CreateBindingKey(certifiedKeySecretBytes, aikSecretKeyBytes)
+	if assert.NoError(err) == false { return }
 
-// 	encrypted := make([]byte, 32, 32)
+	encrypted := make([]byte, 32, 32)
 
-// 	_, err = tpm.Unbind(bindingKey, certifiedKeySecretBytes, encrypted)
-// 	if assert.NoError(err) == false { return }
+	_, err = tpm.Unbind(bindingKey, certifiedKeySecretBytes, encrypted)
+	if assert.NoError(err) == false { return }
 
-// //	assert.Equal(original, decrypted)
-// }
+//	assert.Equal(original, decrypted)
+}
 
 func TestSigningKey(t *testing.T) {
 

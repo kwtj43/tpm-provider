@@ -35,6 +35,11 @@ int Sign(tpmCtx* ctx,
         .hierarchy = TPM2_RH_NULL,
     };
 
+    *signatureBytesLength = 0;
+
+    //---------------------------------------------------------------------------------------------
+    // Setup parameters and call Tss2_Sys_Load
+    //---------------------------------------------------------------------------------------------
     offset = 0;
     rval = Tss2_MU_TPM2B_PUBLIC_Unmarshal(publicKeyBytes, publicKeyBytesLength, &offset, &inPublic);
     if (rval != TSS2_RC_SUCCESS)
@@ -63,7 +68,7 @@ int Sign(tpmCtx* ctx,
                             &inPublic,
                             &signingKeyHandle,
                             &name,
-                            NULL);//&sessionsDataOut);
+                            NULL);
 
     if(rval != TSS2_RC_SUCCESS)
     {
@@ -71,6 +76,9 @@ int Sign(tpmCtx* ctx,
         return rval;
     }
 
+    //---------------------------------------------------------------------------------------------
+    // Setup parameters and call Tss2_Sys_Sign
+    //---------------------------------------------------------------------------------------------
     scheme.scheme = TPM2_ALG_RSASSA;
     scheme.details.rsassa.hashAlg = TPM2_ALG_SHA256;
 
@@ -99,6 +107,10 @@ int Sign(tpmCtx* ctx,
     }
 
     Tss2_Sys_FlushContext(ctx->sys, signingKeyHandle);
+
+    //---------------------------------------------------------------------------------------------
+    // Allocate and copy data for the out parameters (signatureBytes).  This will be free'd by go
+    //---------------------------------------------------------------------------------------------
     
     *signatureBytes = (unsigned char*)calloc(signature.signature.rsassa.sig.size, 1);
     if (!signatureBytes)

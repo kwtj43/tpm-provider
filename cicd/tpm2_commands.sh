@@ -73,7 +73,7 @@ tpm2_getpubak --tcti="$TCTI_STR" \
     --file="$AK_PUB" \
     --ak-name="$AK_NAME" \
     --alg=rsa \
-    --digest-alg=sha1 \
+    --digest-alg=sha256 \
     --sign-alg=rsassa \
     --ak-passwd="$AK_AUTH"
 
@@ -148,7 +148,7 @@ tpm2_load --tcti="$TCTI_STR" \
 tpm2_certify --tcti="$TCTI_STR" \
     --key-handle="$AK_HANDLE" \
     --object-handle="$WLA_HANDLE" \
-    --halg=sha1 \
+    --halg=sha256 \
     --pwdk="$AK_AUTH" \
     --attest-file="$OUT_DIR/out.attest" \
     --sig-file="$OUT_DIR/out.sig" \
