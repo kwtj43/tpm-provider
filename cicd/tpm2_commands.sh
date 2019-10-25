@@ -32,7 +32,6 @@ CREDENTIAL=$OUT_DIR/credential.out
 CREDENTIAL_ACTIVE=$OUT_DIR/credential_active.outtagent
 WLA_KEY_AUTH=hex:feedfeedfeedfeedfeedfeedfeedfeedfeedfeed
 
-#TCTI_STR="tabrmd:bus_type=session"
 TCTI_STR="tabrmd"
 
 if [ -d $OUT_DIR ]; then
@@ -60,7 +59,7 @@ tpm2_getpubek --tcti="$TCTI_STR" \
     --alg=rsa \
     --file="$EK_PUB"
 
-# This is not needed in the c code since we assume the ek create in getpubek will be stored
+# This is not needed in the tpm-provider code since the ek create in getpubek will be stored
 # at a fixed handled.
 tpm2_readpublic --tcti="$TCTI_STR" \
     --object="$EK_HANDLE" \
@@ -75,7 +74,8 @@ tpm2_getpubak --tcti="$TCTI_STR" \
     --ak-name="$AK_NAME" \
     --alg=rsa \
     --digest-alg=sha1 \
-    --sign-alg=rsassa
+    --sign-alg=rsassa \
+    --ak-passwd="$AK_AUTH"
 
 #
 # The generation of secret data, 'make_credential' and 'activate_credential' are simulated here 
@@ -112,12 +112,10 @@ tpm2_quote --tcti="$TCTI_STR" \
     --sel-list="$QUOTE_PCRLIST" \
     --qualify-data=$QUOTE_QUALIFY
 
-
 #
 # The following commands provision an ak at 0x81000000 for use with wla's singing/binding keys
 #
 
-# tpm2_createprimary -H o -P hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -g 0x000B -G 0x0001 -C $OUT_DIR/primaryKey.context
 tpm2_createprimary --tcti="$TCTI_STR" \
     --hierarchy="o" \
     --pwdp="$OWNER_AUTH" \
@@ -125,15 +123,12 @@ tpm2_createprimary --tcti="$TCTI_STR" \
     --kalg=0x1 \
     --context="$OUT_DIR/primaryKey.context"
 
-
-# tpm2_evictcontrol -A o -P hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -c $OUT_DIR/primaryKey.context -S 0x81000000
 tpm2_evictcontrol --tcti="$TCTI_STR" \
     --auth="o" \
     --pwda="$OWNER_AUTH" \
     --context="$OUT_DIR/primaryKey.context" \
     --persistent="$WLA_HANDLE"
 
-# # tpm2_create -H 0x81000000 -g 0x0B -G 0x1 -A 0x00020072 -u $OUT_DIR/bindingKey.pub -r $OUT_DIR/bindingKey.priv -K hex:12345678
 tpm2_create --tcti="$TCTI_STR" \
     --parent="$WLA_HANDLE" \
     --halg=0xB \
@@ -143,7 +138,6 @@ tpm2_create --tcti="$TCTI_STR" \
     --privfile="$OUT_DIR/bindingKey.priv" \
     --pwdk="$WLA_KEY_AUTH"
 
-# # tpm2_load -H 0x81000000 -u $OUT_DIR/bindingKey.pub -r $OUT_DIR/bindingKey.priv -C $OUT_DIR/bk.context -n $OUT_DIR/bkFilename
 tpm2_load --tcti="$TCTI_STR" \
     --parent="$WLA_HANDLE" \
     --pubfile="$OUT_DIR/bindingKey.pub" \
@@ -151,16 +145,12 @@ tpm2_load --tcti="$TCTI_STR" \
     --context="$OUT_DIR/bk.context" \
     --name="$OUT_DIR/bkFilename" \
 
-# KWT: RECONCILE WITH ORIG.SH
-
-#   tpm2_certify -k 0x81018000 -H 0x81000000 -K hex:beefbeefbeefbeefbeefbeefbeefbeefbeefbeef -g 0x0B -a /tmp/out.attest -s /tmp/out.sig -C /tmp/bk.context  -P hex:12345678    
-# # tpm2_certify -k 0x81018000 -H 0x81000000 -K hex:beefbeefbeefbeefbeefbeefbeefbeefbeefbeef -g 0x0B -a tpmout/out.attest -s tpmout/out.sig -C tpmout/bk.context -P hex:12345678
-# # tpm2_certify -k 0x81018000 -H 0x81000000 -K hex:beefbeefbeefbeefbeefbeefbeefbeefbeefbeef -g 0x0B -a $OUT_DIR/out.attest -s $OUT_DIR/out.sig -C $OUT_DIR/bk.context -P hex:12345678
-# tpm2_certify --tcti="$TCTI_STR" \
-#     --key-handle="$AK_HANDLE" \
-#     --obj-handle="$WLA_HANDLE" \
-#     --pwdk="$AK_AUTH" \
-#     --attest-file="$OUT_DIR/out.attest" \
-#     --sig-file="$OUT_DIR/out.sig" \
-#     --obj-context="$OUT_DIR/bk.context" \
-#     --pwdo="$WLA_KEY_AUTH"
+tpm2_certify --tcti="$TCTI_STR" \
+    --key-handle="$AK_HANDLE" \
+    --object-handle="$WLA_HANDLE" \
+    --halg=sha1 \
+    --pwdk="$AK_AUTH" \
+    --attest-file="$OUT_DIR/out.attest" \
+    --sig-file="$OUT_DIR/out.sig" \
+    --obj-context="$OUT_DIR/bk.context" \
+    --pwdo="$WLA_KEY_AUTH"
