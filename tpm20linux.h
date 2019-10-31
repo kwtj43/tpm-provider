@@ -77,7 +77,7 @@
 #define LOG(fmt, ...) fprintf(stdout, "[LOG:%s::%d] " fmt "\n", __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__);
 #define ERROR(fmt, ...) fprintf(stderr, "[ERR:%s::%d] " fmt "\n", __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__);
 
-#define ENABLE_DEBUG_LOGGING 1
+#define ENABLE_DEBUG_LOGGING 0
 #if ENABLE_DEBUG_LOGGING
 #define DEBUG(fmt, ...) fprintf(stdout, "[DBG:%s::%d] " fmt "\n", __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__);
 #else
@@ -94,23 +94,5 @@ struct tpmCtx
 // util.c
 int str2Tpm2bAuth(const char* secretKey, size_t keyLength, TPM2B_AUTH* tpm2bAuth);
 int InitializeTpmAuth(TPM2B_AUTH* auth, const char* secretKey, size_t secretKeyLength);
-
-
-// static inline int IsValidSecretKey(const char* secretKey, size_t secretKeyLength)
-// {
-//     if(!secretKey)
-//     {
-//         ERROR("Null secret key provided");
-//         return FALSE;
-//     }
-
-//     if(secretKeyLength == 0 || secretKeyLength > ARRAY_SIZE(((TPM2B_AUTH*)0)->buffer))
-//     {
-//         ERROR("Invalid secret key length: %d", secretKeyLength);
-//         return FALSE;
-//     }
-
-//     return TRUE;
-// }
 
 #endif
