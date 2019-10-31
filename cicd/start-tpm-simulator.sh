@@ -30,6 +30,21 @@ sleep 3
 systemctl status tpm2-abrmd 2>&1> /dev/null
 if [ $? -ne 0 ]; then
     echo "==> ERROR:  tpm2-abrmd is not started"
+    exit 1
 else
     echo "==> OK"
 fi
+
+# WIP:  Try to populate the simulator with an EK cert
+# from https://google.github.io/tpm-js/#pg_certificates
+
+# Generate a public/private key pair
+#openssl req -new -newkey rsa:4096 -x509 -sha256 -days 365 -nodes -out certificate.pem -keyout private.pem -subj "/C=US/ST=California/L=Folsom/O=intel/CN=tpmsimulator"
+
+# convert the cert to der
+#openssl x509 -outform der -in certificate.pem -out ek.crt
+
+# save the der to 0x1c00002 using NvDefineSpace and NvWrite
+#ekSize=`stat --printf="%s" ek.crt`
+#tpm2_nvdefine -x 0x1c00002 -a 0x40000001 -s $ekSize -t 0x2000a # (ppwrite|writedefine|ppread|ownerread|authread|no_da|written|platformcreate)
+#tpm2_nvwrite -x 0x1c00002 -a 0x40000001 -o 0 ek.crt
