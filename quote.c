@@ -93,9 +93,9 @@ static int getQuote(TSS2_SYS_CONTEXT* sys,
 
     memset( (void *)signature, 0, sizeof(TPMT_SIGNATURE) );
 
-    rval = Tss2_Sys_Quote(sys, akHandle, &sessionsData,
+    rval = TSS2_RETRY_EXP(Tss2_Sys_Quote(sys, akHandle, &sessionsData,
             qualifyingData, &inScheme, pcrSelection, quote,
-            signature, &sessionsDataOut);
+            signature, &sessionsDataOut));
 
     if(rval != TPM2_RC_SUCCESS)
     {

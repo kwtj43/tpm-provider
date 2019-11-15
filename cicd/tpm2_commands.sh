@@ -15,6 +15,7 @@ set -x
 #
 # The TPM must be cleared before running.
 #
+# Requires 'xxd' from vim-common
 
 OUT_DIR=./tpmout
 OWNER_AUTH=hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
@@ -40,18 +41,20 @@ fi
 
 mkdir $OUT_DIR
 
-#
+#--------------------------------------------------------------------------------------------------
+# Step 1: Take Ownership
 # Initiated in tasks.take_ownership.go and implemented in 'take_ownership.c'
-#
+#--------------------------------------------------------------------------------------------------
 tpm2_takeownership --tcti=$TCTI_STR \
     --owner-passwd="$OWNER_AUTH" \
     --endorse-passwd="$ENDORSE_AUTH" \
     --lock-passwd="$LOCKOUT_AUTH"
 
-#
+#--------------------------------------------------------------------------------------------------
+# Step 2: Create AIK
 # The following three commands are encapsulated in CreateAik() (in aik.c) which is called
 # from tasks.provision_aik.go
-#
+#--------------------------------------------------------------------------------------------------
 tpm2_getpubek --tcti="$TCTI_STR" \
     --endorse-passwd="$ENDORSE_AUTH" \
     --owner-passwd="$OWNER_AUTH" \
@@ -77,26 +80,27 @@ tpm2_getpubak --tcti="$TCTI_STR" \
     --sign-alg=rsassa \
     --ak-passwd="$AK_AUTH"
 
-#
+#--------------------------------------------------------------------------------------------------
 # The generation of secret data, 'make_credential' and 'activate_credential' are simulated here 
-# -- the nonce creation is done by HVS, tasks.provision_aik.go uses 'ActivateCreation()' 
+# -- the nonce is created by HVS, tasks.provision_aik.go uses 'ActivateCredential()' 
 # (activate_credential.c) to decrypt that data during the HVS handshakes performed in 
-#  tasks.provision_aik.go
-#
-SEC_DATA=$OUT_DIR/secret.data
-echo "12345678" > $SEC_DATA
+# tasks.provision_aik.go
+#--------------------------------------------------------------------------------------------------
+SECRET_DATA=$OUT_DIR/secret.data
+echo "12345678" > $SECRET_DATA
 file_size=`stat --printf="%s" $AK_NAME`
 AK_NAME_STRING=`cat "$AK_NAME"  | xxd -p -c $file_size`
 
 # this command craps all over my console: /dev/null
 tpm2_makecredential --tcti="$TCTI_STR" \
-    --enckey="$READPUBLIC_EK_PUB" \
-    --sec="$SEC_DATA" \
+    -e "$READPUBLIC_EK_PUB" \
+    --sec="$SECRET_DATA" \
     --name="$AK_NAME_STRING" \
     --out-file=$CREDENTIAL 2>&1 >/dev/null
 
 tpm2_activatecredential --tcti="$TCTI_STR" \
     --endorse-passwd="$ENDORSE_AUTH" \
+    --Password="$AK_AUTH" \
     --handle="$AK_HANDLE" \
     --key-handle="$EK_HANDLE" \
     --in-file="$CREDENTIAL" \
@@ -111,6 +115,7 @@ tpm2_quote --tcti="$TCTI_STR" \
     --ak-handle="$AK_HANDLE" \
     --sel-list="$QUOTE_PCRLIST" \
     --qualify-data=$QUOTE_QUALIFY
+    --ak-password="$AK_AUTH" \
 
 #
 # The following commands provision an ak at 0x81000000 for use with wla's singing/binding keys

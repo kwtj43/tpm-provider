@@ -27,17 +27,15 @@ build:gta:
       - "out/tpmprovider.test"
     expire_in: 1 week
 
-# test:
-#   stage: test
-#   image: gta-devel
-#   tags:
-#     - gta
-#   script:
-#     - cicd/start-tpm-simulator.sh
-#     - cicd/orig.sh
-#     - go test ./... -tags=gitlab -coverpkg=./... -coverprofile cover.out
-#     - go tool cover -func cover.out
-#     - go tool cover -html=cover.out -o cover.html
-#   artifacts:
-#     paths:
-#       - "cover.html"
+test:
+  stage: test
+  image: gta-devel
+  tags:
+    - gta
+  script:
+    - go test ./... -tags=unit_test -coverpkg=./... -coverprofile cover.out
+    - go tool cover -func cover.out
+    - go tool cover -html=cover.out -o cover.html
+  artifacts:
+    paths:
+      - "cover.html"

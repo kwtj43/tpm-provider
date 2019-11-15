@@ -77,7 +77,7 @@ rm -f /lib/systemd/system/anaconda.target.wants/*;
 
 #  Development tools: gcc 8.3.1 (rhel8), ldd v2.28
 RUN yum -y group install "Development Tools" 
-RUN yum -y install golang makeself gdb
+RUN yum -y install golang makeself gdb vim-common
 
 # platforminfo dependencies
 RUN yum -y install dmidecode redhat-lsb tboot

@@ -36,30 +36,16 @@ const (
 // KWT: Document interface 
 
 type TpmProvider interface {
+
+	//
+	// Releases the resources associated with the TpmProvider.
+	//
 	Close()
 
+	//
+	//
+	//
 	Version() C.TPM_VERSION
-
-	//
-	// TODO
-	//
-	CreateSigningKey(keySecret []byte, aikSecretKey []byte) (*CertifiedKey, error)
-
-	//
-	// TODO
-	//
-	CreateBindingKey(keySecret []byte, aikSecretKey []byte) (*CertifiedKey, error)
-
-	//
-	// TODO
-	//
-	Unbind(certifiedKey *CertifiedKey, keySecret []byte, encryptedData []byte) ([]byte, error)
-
-	//
-	// TODO
-	// HASH MUST BE 32BYTES (RSA/SHA256)
-	//
-	Sign(certifiedKey *CertifiedKey, keySecret []byte, hash []byte) ([]byte, error)
 
 	//
 	// TODO
@@ -124,11 +110,37 @@ type TpmProvider interface {
 	NvWrite(tpmOwnerSecretKey string, nvIndex uint32, data []byte) error
 
 	//
-	//
+	// TODO
 	//
 	CreatePrimaryHandle(ownerSecret []byte, handle uint32) error
 
-	// KWT:  These are not being used (clean up)
+	//
+	// TODO
+	//
+	CreateSigningKey(keySecret []byte, aikSecretKey []byte) (*CertifiedKey, error)
+
+	//
+	// TODO
+	//
+	CreateBindingKey(keySecret []byte, aikSecretKey []byte) (*CertifiedKey, error)
+
+	//
+	// TODO
+	//
+	Unbind(certifiedKey *CertifiedKey, keySecret []byte, encryptedData []byte) ([]byte, error)
+
+	//
+	// TODO
+	// HASH MUST BE 32BYTES (RSA/SHA256)
+	//
+	Sign(certifiedKey *CertifiedKey, keySecret []byte, hash []byte) ([]byte, error)
+
+
+	//
+	// TODO
+	//
 	PublicKeyExists(handle uint32) (bool, error)
+
+	// Remove...?
 	ReadPublic(secretKey string, handle uint32) ([]byte, error)
 }

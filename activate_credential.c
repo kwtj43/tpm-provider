@@ -102,7 +102,7 @@ int ActivateCredential(tpmCtx* ctx,
     //
     if(credentialBytes == NULL || credentialBytesLength == 0 || credentialBytesLength > ARRAY_SIZE(credentialBlob.credential))
     {
-        ERROR("Invalid credential bytes");
+        ERROR("Invalid size of credential bytes");
         return -1;
     }
 
