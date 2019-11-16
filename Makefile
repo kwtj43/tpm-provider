@@ -7,7 +7,7 @@ VERSION := $(or ${GITTAG}, v1.0.0)
 # Pass the '-w' flag to the linker to omit the debug information (for example, go build -ldflags=-w prog.go).
 # see https://golang.org/doc/gdb
 tpmprovider:
-	go test -c -o out/tpmprovider.test -gcflags=all="-N -l" -tags=gitlab
+	go test -c -o out/tpmprovider.test -gcflags=all="-N -l" -tags=unit_test
 
 all: tpmprovider
 
