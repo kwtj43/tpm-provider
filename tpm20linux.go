@@ -521,12 +521,12 @@ func (tpm *tpm20Linux) NvIndexExists(nvIndex uint32) (bool, error) {
 	return true, nil
 }
 
-func (tpm *tpm20Linux) CreatePrimaryHandle(ownerSecret []byte, handle uint32) error {
+func (tpm *tpm20Linux) CreatePrimaryHandle(tpmOwnerSecretKey []byte, handle uint32) error {
 	
 	rc := C.CreatePrimaryHandle(tpm.tpmCtx,
 								C.uint32_t(handle),
-								(*C.char)(unsafe.Pointer(&ownerSecret[0])), 
-								C.size_t(len(ownerSecret)))
+								(*C.char)(unsafe.Pointer(&tpmOwnerSecretKey[0])), 
+								C.size_t(len(tpmOwnerSecretKey)))
 
 	if rc != 0 {
 		return fmt.Errorf("Unbind returned error code %x", rc)
@@ -544,7 +544,7 @@ func (tpm *tpm20Linux) PublicKeyExists(handle uint32) (bool, error) {
 	return true, nil
 }
 
-func (tpm *tpm20Linux) ReadPublic(secretKey string, handle uint32) ([]byte, error) {
+func (tpm *tpm20Linux) ReadPublic(tpmOwnerSecretKey string, handle uint32) ([]byte, error) {
 
 	var returnValue []byte
 	var public *C.char

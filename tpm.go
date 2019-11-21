@@ -112,7 +112,7 @@ type TpmProvider interface {
 	//
 	// TODO
 	//
-	CreatePrimaryHandle(ownerSecret []byte, handle uint32) error
+	CreatePrimaryHandle(tpmOwnerSecretKey []byte, handle uint32) error
 
 	//
 	// TODO
@@ -142,5 +142,5 @@ type TpmProvider interface {
 	PublicKeyExists(handle uint32) (bool, error)
 
 	// Remove...?
-	ReadPublic(secretKey string, handle uint32) ([]byte, error)
+	ReadPublic(tpmOwnerSecretKey string, handle uint32) ([]byte, error)
 }
