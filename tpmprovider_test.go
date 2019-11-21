@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/base64"
 	"fmt"
-	//"os"
+	"os"
 	"math/rand"
 	"os/exec"
 	"strconv"
@@ -39,10 +39,12 @@ func createTestTpm(t *testing.T) TpmProvider {
 
 func startSimulator() (int, error) {
 
-	fmt.Printf("Starting tpm simulator\n")
+	fmt.Printf("--------------------------------------------------------------------------------\n")
+	fmt.Printf("- Starting tpm simulator\n")
+	fmt.Printf("--------------------------------------------------------------------------------\n")
 
 	simulatorCmd := exec.Command("/simulator/src/tpm_server", "-rm")
-	//simulatorCmd.Stdout = os.Stdout
+	simulatorCmd.Stdout = os.Stdout
 	err := simulatorCmd.Start()
 	if err != nil {
 		fmt.Printf("There was an error starting the tpm_server: %s\n", err)
@@ -53,10 +55,10 @@ func startSimulator() (int, error) {
 	fmt.Printf("TPM Simulator started with pid %d\n", simulatorPid)
 
 	// give the simulator a chance to start before starting tpm2-abrmd service
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	systemctlCmd := exec.Command("systemctl", "start", "tpm2-abrmd")
-	//systemctlCmd.Stdout = os.Stdout
+	systemctlCmd.Stdout = os.Stdout
 	err = systemctlCmd.Start()
 	if err != nil {
 		fmt.Printf("There was an error starting the tpm2-abrmd: %s\n", err)
@@ -75,10 +77,12 @@ func startSimulator() (int, error) {
 
 func stopSimulator(simulatorPid int) error {
 
-	fmt.Printf("Stopping simulator with pid %d\n", simulatorPid)
+	fmt.Printf("--------------------------------------------------------------------------------\n")
+	fmt.Printf("- Stopping simulator with pid %d\n", simulatorPid)
+	fmt.Printf("--------------------------------------------------------------------------------\n")
 
 	systemcltCmd := exec.Command("systemctl", "stop", "tpm2-abrmd")
-	//systemcltCmd.Stdout = os.Stdout
+	systemcltCmd.Stdout = os.Stdout
 	err := systemcltCmd.Start()
 	if err != nil {
 		fmt.Printf("There was an error stopping the tpm2-abrmd: %s\n", err)
@@ -93,7 +97,7 @@ func stopSimulator(simulatorPid int) error {
 	}
 
 	killCmd := exec.Command("kill", "-9", strconv.Itoa(simulatorPid))
-	//killCmd.Stdout = os.Stdout
+	killCmd.Stdout = os.Stdout
 	err = killCmd.Start()
 	if err != nil {
 		fmt.Printf("There was an error running command 'kill': %s\n", err)
@@ -106,6 +110,8 @@ func stopSimulator(simulatorPid int) error {
 		fmt.Printf("There was an error waiting for kill command to finish: %s\n", err)
 		return err
 	}
+
+	time.Sleep(2000 * time.Millisecond)
 
 	return nil
 }
@@ -358,7 +364,7 @@ func TestTakeOwnershipWithValidSecret(t *testing.T) {
 // //	assert.Equal(original, decrypted)
 // }
 
-func TestSigningKey(t *testing.T) {
+func TodoTestSigningKey(t *testing.T) {
 
 	//
 	// Setup test with the simulator and an instance of tpmprovider

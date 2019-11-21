@@ -32,6 +32,8 @@ test:
   tags:
     - gta-unit-test
   script:
+    - kill -9 `pgrep tpm_server`
+    - systemctl stop tpm2-abrmd
     - go test ./... -tags=unit_test -coverpkg=./... -coverprofile out/cover.out
     - go tool cover -func out/cover.out
     - go tool cover -html=out/cover.out -o out/cover.html
