@@ -5,17 +5,17 @@
 #include "tpm20linux.h"
 #include <tss2/tss2_mu.h>
 
-int Sign(tpmCtx* ctx, 
-            const char* keySecret, 
-            size_t keySecretLength, 
-            const char* publicKeyBytes, 
-            size_t publicKeyBytesLength,
-            const char* privateKeyBytes, 
-            size_t privateKeyBytesLength,
-            const char* hashBytes, 
-            size_t hashBytesLength,
-            char** signatureBytes,
-            int* signatureBytesLength)
+int Sign(const tpmCtx* ctx, 
+         const char* keySecret, 
+         size_t keySecretLength, 
+         const char* publicKeyBytes, 
+         size_t publicKeyBytesLength,
+         const char* privateKeyBytes, 
+         size_t privateKeyBytesLength,
+         const char* hashBytes, 
+         size_t hashBytesLength,
+         char** const signatureBytes,
+         int* const signatureBytesLength)
 {
     TPM2_RC                 rval;
     TPM2_HANDLE             signingKeyHandle = 0;

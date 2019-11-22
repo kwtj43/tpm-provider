@@ -47,7 +47,7 @@ func (mockedTpm MockedTpmProvider) IsOwnedWithAuth(tpmOwnerSecretKey string) (bo
 	args := mockedTpm.Called(tpmOwnerSecretKey)
 	return args.Bool(0), args.Error(1)
 }
-	
+
 func (mockedTpm MockedTpmProvider) CreateAik(tpmOwnerSecretKey string, aikSecretKey string) error {
 	args := mockedTpm.Called(tpmOwnerSecretKey, aikSecretKey)
 	return args.Error(0)

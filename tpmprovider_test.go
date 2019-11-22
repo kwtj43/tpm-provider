@@ -7,22 +7,22 @@
 package tpmprovider
 
 import (
-	"encoding/hex"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"os/exec"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
-	TpmSecretKey		= "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-	AikSecretKey		= "beefbeefbeefbeefbeefbeefbeefbeefbeefbeef"
-	CertifiedKeySecret 	= "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed"
+	TpmSecretKey       = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	AikSecretKey       = "beefbeefbeefbeefbeefbeefbeefbeefbeefbeef"
+	CertifiedKeySecret = "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed"
 )
 
 func createTestTpm(t *testing.T) TpmProvider {
@@ -48,7 +48,7 @@ func (ctx *simulatorContext) start() error {
 	fmt.Printf("--------------------------------------------------------------------------------\n")
 
 	ctx.simulatorCmd = exec.Command("/simulator/src/tpm_server", "-rm")
-//	simulatorCmd.Stdout = os.Stdout
+	//	simulatorCmd.Stdout = os.Stdout
 	err := ctx.simulatorCmd.Start()
 	if err != nil {
 		fmt.Printf("There was an error starting the tpm_server: %s\n", err)
@@ -107,7 +107,7 @@ func (ctx *simulatorContext) stop() error {
 		return err
 	}
 
-	// wait for the simulator to stop from the kill command, ignore the error since 
+	// wait for the simulator to stop from the kill command, ignore the error since
 	// 'kill' results in a signal error result
 	_ = ctx.simulatorCmd.Wait()
 
@@ -122,11 +122,11 @@ func init() {
 
 func TestTpmVersion(t *testing.T) {
 
-	simulator := simulatorContext {}
+	simulator := simulatorContext{}
 	err := simulator.start()
 	if err != nil {
 		assert.NoError(t, err)
-	 	return
+		return
 	}
 
 	tpm := createTestTpm(t)
@@ -142,11 +142,11 @@ func TestTpmVersion(t *testing.T) {
 
 func TestTakeOwnershipWithValidSecret(t *testing.T) {
 
-	simulator := simulatorContext {}
+	simulator := simulatorContext{}
 	err := simulator.start()
 	if err != nil {
 		assert.NoError(t, err)
-	 	return
+		return
 	}
 
 	tpm := createTestTpm(t)
@@ -163,11 +163,11 @@ func TestTakeOwnershipWithValidSecret(t *testing.T) {
 
 func TodoTestSigningKey(t *testing.T) {
 
-	simulator := simulatorContext {}
+	simulator := simulatorContext{}
 	err := simulator.start()
 	if err != nil {
 		assert.NoError(t, err)
-	 	return
+		return
 	}
 
 	tpm := createTestTpm(t)
@@ -180,12 +180,16 @@ func TodoTestSigningKey(t *testing.T) {
 	certifiedKeySecretBytes, _ := hex.DecodeString(CertifiedKeySecret)
 
 	signingKey, err := tpm.CreateSigningKey(certifiedKeySecretBytes, aikSecretKeyBytes)
-	if assert.NoError(t, err) == false { return }
+	if assert.NoError(t, err) == false {
+		return
+	}
 
 	// just hash some bytes (in this case the aik secret key) and make sure
 	// no error occurs and bytes are returned
 	signedBytes, err := tpm.Sign(signingKey, certifiedKeySecretBytes, hashToSign)
-	if assert.NoError(t, err) == false { return }
+	if assert.NoError(t, err) == false {
+		return
+	}
 	assert.NotEqual(t, len(signedBytes), 0)
 
 	simulator.stop()
@@ -197,11 +201,11 @@ func TodoTestSigningKey(t *testing.T) {
 //
 func TestTpmQuoteProvisioning(t *testing.T) {
 
-	simulator := simulatorContext {}
+	simulator := simulatorContext{}
 	err := simulator.start()
 	if err != nil {
 		assert.NoError(t, err)
-	 	return
+		return
 	}
 
 	tpm := createTestTpm(t)
@@ -219,8 +223,8 @@ func TestTpmQuoteProvisioning(t *testing.T) {
 	fmt.Printf("Successfully created AIK\n")
 
 	nonce, _ := base64.StdEncoding.DecodeString("ZGVhZGJlZWZkZWFkYmVlZmRlYWRiZWVmZGVhZGJlZWZkZWFkYmVlZiA=")
-	pcrs := []int {0,1,2,3,18,19,22,}
-	pcrBanks := []string {"SHA1", "SHA256",}
+	pcrs := []int{0, 1, 2, 3, 18, 19, 22}
+	pcrBanks := []string{"SHA1", "SHA256"}
 	quoteBytes, err := tpm.GetTpmQuote(AikSecretKey, nonce, pcrBanks, pcrs)
 	assert.NoError(t, err)
 	assert.NotEqual(t, len(quoteBytes), 0)
@@ -233,11 +237,11 @@ func TestMultiThreading(t *testing.T) {
 	rand.Seed(43)
 	var wg sync.WaitGroup
 
-	simulator := simulatorContext {}
+	simulator := simulatorContext{}
 	err := simulator.start()
 	if err != nil {
 		assert.NoError(t, err)
-	 	return
+		return
 	}
 
 	tpm := createTestTpm(t)
@@ -260,7 +264,7 @@ func TestMultiThreading(t *testing.T) {
 
 	for i := 0; i < 20; i++ {
 		wg.Add(1)
-		go func (threadNum int) {
+		go func(threadNum int) {
 			defer wg.Done()
 
 			// generate some sleep somewhere under a second
@@ -270,17 +274,17 @@ func TestMultiThreading(t *testing.T) {
 
 			tpm, err := tpmFactory.NewTpmProvider()
 			assert.NoError(t, err)
-		
+
 			nonce, _ := base64.StdEncoding.DecodeString("ZGVhZGJlZWZkZWFkYmVlZmRlYWRiZWVmZGVhZGJlZWZkZWFkYmVlZiA=")
-			pcrs := []int {0,1,2,3,18,19,22,}
-			pcrBanks := []string {"SHA1", "SHA256",}
+			pcrs := []int{0, 1, 2, 3, 18, 19, 22}
+			pcrBanks := []string{"SHA1", "SHA256"}
 
 			fmt.Printf("Thread[%d][%s]: Starting tpm quote\n", threadNum, time.Now().String())
 			quoteBytes, err := tpm.GetTpmQuote(AikSecretKey, nonce, pcrBanks, pcrs)
 			assert.NoError(t, err)
 			assert.NotEqual(t, len(quoteBytes), 0)
 			fmt.Printf("Thread[%d][%s]: Successfully completed tpm quote\n", threadNum, time.Now().String())
-		} (i)
+		}(i)
 	}
 
 	wg.Wait()
@@ -288,11 +292,7 @@ func TestMultiThreading(t *testing.T) {
 	simulator.stop()
 }
 
-
-
 //-------------------------------------------------------------------------------------------------------------------------
-
-
 
 // To run this test (more of a c debugging tool)...
 // Where:
@@ -323,13 +323,11 @@ func TestMultiThreading(t *testing.T) {
 // 	assert.NoError(err)
 // 	defer tpmProvider.Close()
 
-
 // 	// secret := "AQBZ4n0tHyIbb5watAUuGg+L4mL/z9r7LzoX8ujGtVST7OcoGU5enm5wMsA90Ufcfj7UxDv6FpYLqonxtl8LFvCB+4QNAA1EG4eGXIdzAXGU3JbTlXyr2DlRSBObMe/lf3pxiTPQctjoSsLQWw7BtOPpAVbp+OS+lTD8Dut+sva1TYoBnW9KAkU5qkLsKn8uBtb7ozX1rVteHDh1CPGYnKC3nfg5rdOuLlq3xGafE8osEHD/cXEKddtoUwMY+6zroJ7XwsaYvpsa7ArRhARViHKZFwtw9hMmBXR28E93iZDqthaQvfMxjrXBmsFbGptq91EaNp+G0XVH4mP0sJmlQpbI"
 // 	// secretBytes, err := base64.StdEncoding.DecodeString(secret)
 // 	// assert.NoError(err)
 
 // 	//credential := "ADQAID2qrkbHKt9ZEBb4RdhMh6esz52AHxuqd6LDDtI3pxwxMyYyEGNq0usYQAnW2H4hmggl"
-
 
 // 	credentialBytes, err := ioutil.ReadFile("/tmp/aikName")
 // 	secretBytes, err := ioutil.ReadFile("/tmp/secret.data") //[]byte("12345678")
@@ -342,7 +340,6 @@ func TestMultiThreading(t *testing.T) {
 // 	// log.Infof("nonce  [%x]: %s\n\n", len(nonce), hex.EncodeToString(nonce))
 // 	// log.Infof("n2     [%x]: %s\n\n", len(n2), hex.EncodeToString(n2))
 
-
 // 	decrypted, err := tpmProvider.ActivateCredential(TpmSecretKey, AikSecretKey, credentialBytes, secretBytes)
 // 	//decrypted, err := tpmProvider.ActivateIdentity(TpmSecretKey, AikSecretKey, a2, n2)
 // 	assert.NoError(err)
@@ -350,8 +347,6 @@ func TestMultiThreading(t *testing.T) {
 // 	//log.Infof("Decrypted: %d", len(decrypted))
 // 	log.Infof("Decrypted[%x]: %s\n\n", len(decrypted), hex.EncodeToString(decrypted))
 // }
-
-
 
 // func TestTpmQuote(t *testing.T) {
 // 	assert := assert.New(t)
@@ -362,7 +357,6 @@ func TestMultiThreading(t *testing.T) {
 // 	nonce := []byte {1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0}
 // 	pcrs := []int {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23}
 // 	pcrBanks := []string {"SHA1", "SHA256"}
-	
 
 // //	quoteBytes, err := tpmProvider.GetTpmQuote("66ac6e73e910bdba42d2197a20ab2e91590c5498", nonce, pcrBanks, pcrs)
 // 	quoteBytes, err := tpm.GetTpmQuote(AikSecretKey, nonce, pcrBanks, pcrs)
@@ -380,7 +374,7 @@ func TestMultiThreading(t *testing.T) {
 // 	assert.NoError(err)
 // 	log.Infof("pcrSelectionBytes[%x]: %s", len(pcrSelectionBytes), hex.EncodeToString(pcrSelectionBytes))
 // 	assert.Equal(len(pcrSelectionBytes), 132)
-	
+
 // 	// minimal
 // 	pcrSelectionBytes, err = getPcrSelectionBytes([]string{"SHA1"}, []int {0})
 // 	assert.NoError(err)
@@ -400,7 +394,7 @@ func TestMultiThreading(t *testing.T) {
 // 	// pcr range error
 // 	pcrSelectionBytes, err = getPcrSelectionBytes([]string{"SHA1"}, []int {32})
 // 	assert.Error(err)
-	
+
 // }
 
 // // assumes TPM is cleared and has ownership using TpmSecretKey value

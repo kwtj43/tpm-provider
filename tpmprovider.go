@@ -2,7 +2,7 @@
  * Copyright (C) 2019 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
- package tpmprovider
+package tpmprovider
 
 // #include "tpm.h"
 import "C"
@@ -14,26 +14,24 @@ type CertifiedKey struct {
 	PrivateKey     []byte
 	KeySignature   []byte
 	KeyAttestation []byte
-	KeyName []byte
+	KeyName        []byte
 }
 
 // provides go visibility to values defined in tpm.h (shared with c code)
 const (
-	None 					= C.TPM_VERSION_UNKNOWN
-    V12 					= C.TPM_VERSION_10 // KWT: not supported, remove
-	V20 					= C.TPM_VERSION_20
-	
+	None = C.TPM_VERSION_UNKNOWN
+	V12  = C.TPM_VERSION_10 // KWT: not supported, remove
+	V20  = C.TPM_VERSION_20
+
 	NV_IDX_ENDORSEMENT_KEY = C.NV_IDX_ENDORSEMENT_KEY
-	NV_IDX_ASSET_TAG	   = C.NV_IDX_ASSET_TAG
-	TPM_HANDLE_AIK		   = C.TPM_HANDLE_AIK
-	TPM_HANDLE_EK		   = C.TPM_HANDLE_EK_CERT
+	NV_IDX_ASSET_TAG       = C.NV_IDX_ASSET_TAG
+	TPM_HANDLE_AIK         = C.TPM_HANDLE_AIK
+	TPM_HANDLE_EK          = C.TPM_HANDLE_EK_CERT
 	TPM_HANDLE_PRIMARY     = C.TPM_HANDLE_PRIMARY
 
-	Binding				   = C.TPM_CERTIFIED_KEY_USAGE_BINDING
-	Signing				   = C.TPM_CERTIFIED_KEY_USAGE_SIGNING
+	Binding = C.TPM_CERTIFIED_KEY_USAGE_BINDING
+	Signing = C.TPM_CERTIFIED_KEY_USAGE_SIGNING
 )
-
-// KWT: Document interface 
 
 type TpmProvider interface {
 
@@ -56,7 +54,7 @@ type TpmProvider interface {
 	// TODO
 	//
 	IsOwnedWithAuth(tpmOwnerSecretKey string) (bool, error)
-	
+
 	//
 	// Used in tasks.provision_aik.go
 	//
@@ -73,7 +71,7 @@ type TpmProvider interface {
 	GetAikName(tpmOwnerSecretKey string) ([]byte, error)
 
 	//
-	// ActivateCredential uses the TPM to decrypt 'secretBytes'. 
+	// ActivateCredential uses the TPM to decrypt 'secretBytes'.
 	//
 	// Used in tasks.provision_aik.go to decrypt HVS data.
 	//
@@ -134,7 +132,6 @@ type TpmProvider interface {
 	// HASH MUST BE 32BYTES (RSA/SHA256)
 	//
 	Sign(certifiedKey *CertifiedKey, keySecret []byte, hash []byte) ([]byte, error)
-
 
 	//
 	// TODO

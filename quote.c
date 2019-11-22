@@ -5,8 +5,8 @@
 #include "tpm20linux.h"
 
 // from: https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/tools/tpm2_pcrlist.c
-static int unset_pcr_sections(TPML_PCR_SELECTION *s) {
-
+static int unset_pcr_sections(TPML_PCR_SELECTION *s) 
+{
     UINT32 i, j;
     for (i = 0; i < s->count; i++) {
         for (j = 0; j < s->pcrSelections[i].sizeofSelect; j++) {
@@ -22,7 +22,6 @@ static int unset_pcr_sections(TPML_PCR_SELECTION *s) {
 // from: https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/tools/tpm2_pcrlist.c
 static void update_pcr_selections(TPML_PCR_SELECTION *s1, TPML_PCR_SELECTION *s2) 
 {
-
     UINT32 i1, i2, j;
     for (i2 = 0; i2 < s2->count; i2++) {
         for (i1 = 0; i1 < s1->count; i1++) {
@@ -37,13 +36,16 @@ static void update_pcr_selections(TPML_PCR_SELECTION *s1, TPML_PCR_SELECTION *s2
 }
 
 // from: https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/tools/tpm2_pcrlist.c
-static int getPcrs(TSS2_SYS_CONTEXT* sys, TPML_PCR_SELECTION* requestedPcrs, TPML_DIGEST pcrResults[24], size_t* pcrCount)
+static int getPcrs(TSS2_SYS_CONTEXT* sys, 
+                   TPML_PCR_SELECTION* requestedPcrs, 
+                   TPML_DIGEST pcrResults[24], 
+                   size_t* pcrCount)
 {
-    TSS2_RC rval;
-    TPML_PCR_SELECTION pcr_selection_tmp;
-    TPML_PCR_SELECTION pcr_selection_out;
-    UINT32 pcr_update_counter;
-    size_t count = 0;
+    TSS2_RC             rval;
+    TPML_PCR_SELECTION  pcr_selection_tmp = {0};
+    TPML_PCR_SELECTION  pcr_selection_out = {0};
+    UINT32              pcr_update_counter = 0;
+    size_t              count = 0;
 
     //1. prepare pcrSelectionIn with g_pcrSelections
     memcpy(&pcr_selection_tmp, requestedPcrs, sizeof(pcr_selection_tmp));
@@ -80,10 +82,10 @@ static int getQuote(TSS2_SYS_CONTEXT* sys,
                     TPM2B_ATTEST* quote, 
                     TPMT_SIGNATURE* signature)
 {
-    TSS2_RC rval;
-    TPMT_SIG_SCHEME inScheme;
-    TSS2L_SYS_AUTH_COMMAND sessionsData = { 1, {{.sessionHandle=TPM2_RS_PW}}};
-    TSS2L_SYS_AUTH_RESPONSE sessionsDataOut;
+    TSS2_RC                 rval;
+    TPMT_SIG_SCHEME         inScheme = {0};
+    TSS2L_SYS_AUTH_COMMAND  sessionsData = { 1, {{.sessionHandle=TPM2_RS_PW}}};
+    TSS2L_SYS_AUTH_RESPONSE sessionsDataOut = {0};
 
     inScheme.scheme = TPM2_ALG_NULL;
 
@@ -147,7 +149,7 @@ static int CreateQuoteBuffer(TPM2B_ATTEST* quote,
     //
     bufferSize = sizeof(uint16_t) + quote->size + (sizeof(uint16_t)*3) + signature->signature.rsassa.sig.size;
 
-    // Use pcrSelection to determine the number of bytes needed to store the pcr measurments.
+    // Use pcrSelection to determine the number of bytes needed to store the pcr measurements.
     // KWT:  Use the data in the quote for pcr selection and drop 'pcrSelection' parameter...
     for (int i = 0; i < pcrSelection->count; i++)
     {
@@ -252,15 +254,15 @@ static int CreateQuoteBuffer(TPM2B_ATTEST* quote,
     return TSS2_RC_SUCCESS;
 }
 
-int GetTpmQuote(tpmCtx* ctx, 
-                char* aikSecretKey, 
+int GetTpmQuote(const tpmCtx* ctx, 
+                const char* aikSecretKey, 
                 size_t aikSecretKeyLength, 
-                void* pcrSelectionBytes,
+                const void* pcrSelectionBytes,
                 size_t pcrSelectionBytesLength,
-                void* qualifyingDataBytes,
+                const void* qualifyingDataBytes,
                 size_t qualifyingDataBytesLength,
-                char** quoteBytes, 
-                int* quoteBytesLength)
+                char** const quoteBytes, 
+                int* const quoteBytesLength)
 {
     TSS2_RC             rval;
     TPM2B_AUTH          aikPassword = {0};                                      // For getting the qoute 

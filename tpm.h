@@ -8,10 +8,6 @@
 #include <stdlib.h> // C.free
 #include <stdint.h> // size_t, etc.
 
-// KWT: document fx, etc.
-
-typedef struct tpmCtx tpmCtx;
-
 typedef enum TPM_VERSION
 {
 	TPM_VERSION_UNKNOWN,
@@ -34,7 +30,6 @@ typedef enum TPM_HANDLE
 
 typedef enum TPM_CERTIFIED_KEY_USAGE
 {
-//    TPM_CERTIFIED_KEY_USAGE_UNKNOWN  = 0,
     TPM_CERTIFIED_KEY_USAGE_BINDING = 0,
     TPM_CERTIFIED_KEY_USAGE_SIGNING,
 } TPM_CERTIFIED_KEY_USAGE;
@@ -62,83 +57,132 @@ typedef struct CertifiedKey {
     } keyName;
 } CertifiedKey;
 
+typedef struct tpmCtx tpmCtx;
+
 tpmCtx* TpmCreate();
+
 void TpmDelete(tpmCtx* ctx);
 
 TPM_VERSION Version(tpmCtx* ctx);
-int CreateCertifiedKey(tpmCtx* ctx, CertifiedKey* keyOut, TPM_CERTIFIED_KEY_USAGE usage, const char* keySecret, size_t keySecretLength,  const char* aikSecretKey, size_t aikSecretKeyLength);
 
-int Unbind(tpmCtx* ctx, 
-            const char* keySecret, 
-            size_t keySecretLength, 
-            const char* publicKeyBytes, 
-            size_t publicKeyBytesLength,
-            const char* privateKeyBytes, 
-            size_t privateKeyBytesLength,
-            const char* encryptedBytes, 
-            size_t encryptedBytesLength,
-            char** decryptedData,
-            int* decryptedDataLength); 
+int CreateCertifiedKey(const tpmCtx* ctx, 
+                       CertifiedKey* keyOut, 
+                       TPM_CERTIFIED_KEY_USAGE usage, 
+                       const char* keySecret, 
+                       size_t keySecretLength, 
+                       const char* aikSecretKey, 
+                       size_t aikSecretKeyLength);
 
+int Unbind(const tpmCtx* ctx, 
+           const char* keySecret, 
+           size_t keySecretLength, 
+           const char* publicKeyBytes, 
+           size_t publicKeyBytesLength,
+           const char* privateKeyBytes, 
+           size_t privateKeyBytesLength,
+           const char* encryptedBytes, 
+           size_t encryptedBytesLength,
+           char** const decryptedData,
+           int* const decryptedDataLength); 
 
-int Sign(tpmCtx* ctx, 
-            const char* keySecret, 
-            size_t keySecretLength, 
-            const char* publicKeyBytes, 
-            size_t publicKeyBytesLength,
-            const char* privateKeyBytes, 
-            size_t privateKeyBytesLength,
-            const char* hashBytes, 
-            size_t hashBytesLength,
-            char** signatureBytes,
-            int* signatureBytesLength);
+int Sign(const tpmCtx* ctx, 
+         const char* keySecret, 
+         size_t keySecretLength, 
+         const char* publicKeyBytes, 
+         size_t publicKeyBytesLength,
+         const char* privateKeyBytes, 
+         size_t privateKeyBytesLength,
+         const char* hashBytes, 
+         size_t hashBytesLength,
+         char** const signatureBytes,
+         int* const signatureBytesLength);
 
+int TakeOwnership(const tpmCtx* ctx, 
+                  const char* ownerSecretKey, 
+                  size_t ownerSecretKeyLength);
 
-//int Sign(ck *CertifiedKey, char* keyAuth []byte, alg crypto.Hash, hashed []byte) ([]byte, error)
+int IsOwnedWithAuth(const tpmCtx* ctx, 
+                    const char* ownerSecretKey, 
+                    size_t ownerSecretKeyLength);
 
+int CreateAik(const tpmCtx* ctx, 
+              const char* ownerSecretKey, 
+              size_t ownerSecretKeyLength, 
+              const char* aikSecretKey, 
+              size_t aikSecretKeyLength);
 
+int GetAikBytes(const tpmCtx* ctx, 
+                const char* ownerSecretKey, 
+                size_t ownerSecretKeyLength, 
+                char** const aikBytes, 
+                int* const aikBytesLength);
 
-int TakeOwnership(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength);
-int IsOwnedWithAuth(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength);
+int GetAikName(const tpmCtx* ctx, 
+               const char* ownerSecretKey, 
+               size_t ownerSecretKeyLength, 
+               char** const aikName, 
+               int* const aikNameLength);
 
-//int IsAikPresent(tpmCtx* ctx, char* tpmSecretKey, size_t secretKeyLength);
-int CreateAik(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, char* aikSecretKey, size_t aikSecretKeyLength);
-int GetAikBytes(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, char** aikBytes, int* aikBytesLength);
-int GetAikName(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, char** aikName, int* aikNameLength);
-
-int GetTpmQuote(tpmCtx* ctx, 
-                char* aikSecretKey, 
+int GetTpmQuote(const tpmCtx* ctx, 
+                const char* aikSecretKey, 
                 size_t aikSecretKeyLength, 
-                void* pcrSelectionBytes,
+                const void* pcrSelectionBytes,
                 size_t pcrSelectionBytesLength,
-                void* qualifyingDataString,
+                const void* qualifyingDataString,
                 size_t qualifyingDataStringLength,
-                char** quoteBytes, 
-                int* quouteBytesLength);
+                char** const quoteBytes, 
+                int* const quouteBytesLength);
 
-int ActivateCredential(tpmCtx* ctx, 
-                       char* tpmOwnerSecretKey, 
-                       size_t tpmOwnerSecretKeyLength,
-                       char* aikSecretKey, 
+int ActivateCredential(const tpmCtx* ctx, 
+                       const char* ownerSecretKey, 
+                       size_t ownerSecretKeyLength,
+                       const char* aikSecretKey, 
                        size_t aikSecretKeyLength,
-                       void* credentialBytes, 
+                       const void* credentialBytes, 
                        size_t credentialBytesLength,
-                       void* secretBytes, 
+                       const void* secretBytes, 
                        size_t secretBytesLength,
-                       char **decrypted,
-                       int *decryptedLength);
+                       char** const decrypted,
+                       int* const decryptedLength);
 
-int CreatePrimaryHandle(tpmCtx* ctx, 
+int CreatePrimaryHandle(const tpmCtx* ctx, 
                         uint32_t persistHandle, 
                         const char* ownerSecretKey, 
                         size_t ownerSecretKeyLength);
 
-int NvIndexExists(tpmCtx* ctx, uint32_t nvIndex);
-int NvDefine(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex, uint16_t nvSize);
-int NvRead(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex, char** nvBytes, int* nvBytesLength);
-int NvWrite(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex, void* nvBytes, size_t nvBytesLength);
-int NvRelease(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLenth, uint32_t nvIndex);
-int PublicKeyExists(tpmCtx* ctx, uint32_t handle);
-int ReadPublic(tpmCtx* ctx, uint32_t handle, char **public, int *publicLength);
+int NvIndexExists(const tpmCtx* ctx, uint32_t nvIndex);
+
+int NvDefine(const tpmCtx* ctx, 
+             const char* ownerSecretKey, 
+             size_t ownerSecretKeyLength, 
+             uint32_t nvIndex, 
+             uint16_t nvSize);
+
+int NvRead(const tpmCtx* ctx, 
+           const char* ownerSecretKey, 
+           size_t ownerSecretKeyLength, 
+           uint32_t nvIndex, 
+           char** const nvBytes, 
+           int* const nvBytesLength);
+
+int NvWrite(const tpmCtx* ctx, 
+            const char* ownerSecretKey, 
+            size_t ownerSecretKeyLength, 
+            uint32_t nvIndex, 
+            const void* nvBytes, 
+            size_t nvBytesLength);
+
+int NvRelease(const tpmCtx* ctx, 
+              const char* ownerSecretKey, 
+              size_t ownerSecretKeyLenth, 
+              uint32_t nvIndex);
+
+int PublicKeyExists(const tpmCtx* ctx, 
+                    uint32_t handle);
+
+int ReadPublic(const tpmCtx* ctx, 
+               uint32_t handle, 
+               char** const public, 
+               int* const publicLength);
 
 #endif

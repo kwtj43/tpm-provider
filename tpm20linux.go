@@ -73,14 +73,14 @@ func (t *tpm20Linux) createCertifiedKey(secretKey []byte, aikSecretKey []byte, k
 	defer C.free(unsafe.Pointer(key.keyAttestation.buffer))
 	defer C.free(unsafe.Pointer(key.keyName.buffer))
 
-	rc := C.CreateCertifiedKey(t.tpmCtx, 
-							   &key, 
-							   C.TPM_CERTIFIED_KEY_USAGE(keyUsage), 
-							   (*C.char)(unsafe.Pointer(&secretKey[0])), 
-							   C.size_t(len(secretKey)), 
-							   (*C.char)(unsafe.Pointer(&aikSecretKey[0])),
-							   C.size_t(len(aikSecretKey)))
-	
+	rc := C.CreateCertifiedKey(t.tpmCtx,
+		&key,
+		C.TPM_CERTIFIED_KEY_USAGE(keyUsage),
+		(*C.char)(unsafe.Pointer(&secretKey[0])),
+		C.size_t(len(secretKey)),
+		(*C.char)(unsafe.Pointer(&aikSecretKey[0])),
+		C.size_t(len(aikSecretKey)))
+
 	if rc == 0 {
 		return &CertifiedKey{
 			Version:        V20,
@@ -102,16 +102,16 @@ func (t *tpm20Linux) Unbind(certifiedKey *CertifiedKey, keySecret []byte, encryp
 	var decryptedBytesLength C.int
 
 	rc := C.Unbind(t.tpmCtx,
-					(*C.char)(unsafe.Pointer(&keySecret[0])), 
-					C.size_t(len(keySecret)),
-					(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])), 
-					C.size_t(len(certifiedKey.PublicKey)),
-					(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])), 
-					C.size_t(len(certifiedKey.PrivateKey)),
-					(*C.char)(unsafe.Pointer(&encryptedData[0])), 
-					C.size_t(len(encryptedData)),
-					&decryptedBytes,
-					&decryptedBytesLength)
+		(*C.char)(unsafe.Pointer(&keySecret[0])),
+		C.size_t(len(keySecret)),
+		(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])),
+		C.size_t(len(certifiedKey.PublicKey)),
+		(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])),
+		C.size_t(len(certifiedKey.PrivateKey)),
+		(*C.char)(unsafe.Pointer(&encryptedData[0])),
+		C.size_t(len(encryptedData)),
+		&decryptedBytes,
+		&decryptedBytesLength)
 
 	if rc != 0 {
 		return nil, fmt.Errorf("Unbind returned error code %x", rc)
@@ -129,16 +129,16 @@ func (t *tpm20Linux) Sign(certifiedKey *CertifiedKey, keySecret []byte, hashed [
 	var signatureBytesLength C.int
 
 	rc := C.Sign(t.tpmCtx,
-					(*C.char)(unsafe.Pointer(&keySecret[0])), 
-					C.size_t(len(keySecret)),
-					(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])), 
-					C.size_t(len(certifiedKey.PublicKey)),
-					(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])), 
-					C.size_t(len(certifiedKey.PrivateKey)),
-					(*C.char)(unsafe.Pointer(&hashed[0])), 
-					C.size_t(len(hashed)),
-					&signatureBytes,
-					&signatureBytesLength)
+		(*C.char)(unsafe.Pointer(&keySecret[0])),
+		C.size_t(len(keySecret)),
+		(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])),
+		C.size_t(len(certifiedKey.PublicKey)),
+		(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])),
+		C.size_t(len(certifiedKey.PrivateKey)),
+		(*C.char)(unsafe.Pointer(&hashed[0])),
+		C.size_t(len(hashed)),
+		&signatureBytes,
+		&signatureBytesLength)
 
 	if rc != 0 {
 		return nil, fmt.Errorf("Sign returned error code %x", rc)
@@ -522,11 +522,11 @@ func (tpm *tpm20Linux) NvIndexExists(nvIndex uint32) (bool, error) {
 }
 
 func (tpm *tpm20Linux) CreatePrimaryHandle(tpmOwnerSecretKey []byte, handle uint32) error {
-	
+
 	rc := C.CreatePrimaryHandle(tpm.tpmCtx,
-								C.uint32_t(handle),
-								(*C.char)(unsafe.Pointer(&tpmOwnerSecretKey[0])), 
-								C.size_t(len(tpmOwnerSecretKey)))
+		C.uint32_t(handle),
+		(*C.char)(unsafe.Pointer(&tpmOwnerSecretKey[0])),
+		C.size_t(len(tpmOwnerSecretKey)))
 
 	if rc != 0 {
 		return fmt.Errorf("Unbind returned error code %x", rc)
