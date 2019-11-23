@@ -88,7 +88,7 @@ int InitializeTpmAuth(TPM2B_AUTH* auth, const char* secretKey, size_t secretKeyL
 // Negative: Public key does not exist at 'handle'
 // Positive: Error code from Tss2_Sys_ReadPublic
 //
-int PublicKeyExists(tpmCtx* ctx, uint32_t handle)
+int PublicKeyExists(const tpmCtx* ctx, uint32_t handle)
 {
     TSS2_RC                 rval;
     TSS2L_SYS_AUTH_RESPONSE sessionsDataOut = {0};
@@ -107,7 +107,10 @@ int PublicKeyExists(tpmCtx* ctx, uint32_t handle)
 }
 
 
-int ReadPublic(tpmCtx* ctx, uint32_t handle, char **public, int *publicLength)
+int ReadPublic(const tpmCtx* ctx, 
+               uint32_t handle, 
+               char** const public, 
+               int* const publicLength)
 {
     TSS2_RC                 rval;
     TSS2L_SYS_AUTH_RESPONSE sessionsDataOut = {0};

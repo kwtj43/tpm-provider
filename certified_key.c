@@ -5,7 +5,13 @@
 #include "tpm20linux.h"
 #include <tss2/tss2_mu.h>
 
-int CreateCertifiedKey(tpmCtx* ctx, CertifiedKey* keyOut, TPM_CERTIFIED_KEY_USAGE keyUsage, const char* keySecret, size_t keySecretLength,  const char* aikSecretKey, size_t aikSecretKeyLength)
+int CreateCertifiedKey(const tpmCtx* ctx, 
+                       CertifiedKey* keyOut, 
+                       TPM_CERTIFIED_KEY_USAGE keyUsage, 
+                       const char* keySecret, 
+                       size_t keySecretLength,  
+                       const char* aikSecretKey, 
+                       size_t aikSecretKeyLength)
 {
     TSS2_RC                 rval;
     TPM2B_AUTH              ownerAuth = {0};
@@ -44,18 +50,6 @@ int CreateCertifiedKey(tpmCtx* ctx, CertifiedKey* keyOut, TPM_CERTIFIED_KEY_USAG
         ERROR("The certified key was not provided");
         return -1;
     }
-
-    // if (!IsValidSecretKey(keySecret, keySecretLength))
-    // {
-    //     ERROR("Invalid key secret");
-    //     return -1;
-    // }
-
-    // if (!IsValidSecretKey(aikSecretKey, aikSecretKeyLength))
-    // {
-    //     ERROR("Invalid aik secret key");
-    //     return -1;
-    // }
 
     //---------------------------------------------------------------------------------------------
     // Return an error if the public key at handle 0x81000000 (TPM_HANDLE_PRIMARY) has not been 

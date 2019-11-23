@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2019 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
@@ -7,12 +6,12 @@
 
 #define NV_DEFAULT_BUFFER_SIZE 512
 
-// https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/lib/tpm2_nv_util.h::tpm2_util_nv_max_buffer_size
+// From https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/lib/tpm2_nv_util.h::tpm2_util_nv_max_buffer_size
 static int GetMaxNvBufferSize(TSS2_SYS_CONTEXT* sys, uint32_t* size) 
 {
-    TSS2_RC rval;
-    TPMS_CAPABILITY_DATA cap_data;
-    TPMI_YES_NO more_data;
+    TSS2_RC                 rval;
+    TPMS_CAPABILITY_DATA    cap_data;
+    TPMI_YES_NO             more_data;
 
     if(!sys)
     {
@@ -51,13 +50,17 @@ static int GetMaxNvBufferSize(TSS2_SYS_CONTEXT* sys, uint32_t* size)
     return rval;
 }
 
-int NvDefine(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex, uint16_t nvSize)
+int NvDefine(const tpmCtx* ctx, 
+             const char* tpmOwnerSecretKey, 
+             size_t tpmOwnerSecretKeyLength, 
+             uint32_t nvIndex, 
+             uint16_t nvSize)
 {
-    TSS2_RC rval;
-    TPM2B_NV_PUBLIC publicInfo = TPM2B_EMPTY_INIT;
-    TPM2B_AUTH nvOwnerAuth = {0};
+    TSS2_RC                 rval;
+    TPM2B_NV_PUBLIC         publicInfo = TPM2B_EMPTY_INIT;
+    TPM2B_AUTH              nvOwnerAuth = {0};
     TSS2L_SYS_AUTH_RESPONSE sessionDataOut;
-    TSS2L_SYS_AUTH_COMMAND sessionData = {0};
+    TSS2L_SYS_AUTH_COMMAND  sessionData = {0};
  
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
@@ -89,11 +92,13 @@ int NvDefine(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLengt
     return TSS2_RC_SUCCESS;
 }
 
-int NvRelease(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex)
+int NvRelease(const tpmCtx* ctx, 
+              const char* tpmOwnerSecretKey, 
+              size_t tpmOwnerSecretKeyLength, 
+              uint32_t nvIndex)
 {
-    TSS2_RC rval;
-
-    TSS2L_SYS_AUTH_COMMAND sessionData = {0};
+    TSS2_RC                 rval;
+    TSS2L_SYS_AUTH_COMMAND  sessionData = {0};
 
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
@@ -116,11 +121,11 @@ int NvRelease(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLeng
 //
 // Returns 0 if true, -1 for false, all other values are error codes
 //
-int NvIndexExists(tpmCtx* ctx, uint32_t nvIndex)
+int NvIndexExists(const tpmCtx* ctx, uint32_t nvIndex)
 {
-    TSS2_RC rval;
+    TSS2_RC         rval;
     TPM2B_NV_PUBLIC nv_public = TPM2B_EMPTY_INIT;
-    TPM2B_NAME nv_name = TPM2B_TYPE_INIT(TPM2B_NAME, name);
+    TPM2B_NAME      nv_name = TPM2B_TYPE_INIT(TPM2B_NAME, name);
 
     rval = Tss2_Sys_NV_ReadPublic(ctx->sys, nvIndex, NULL, &nv_public, &nv_name, NULL);
     if(rval == 0x18B)
@@ -132,7 +137,12 @@ int NvIndexExists(tpmCtx* ctx, uint32_t nvIndex)
 }
 
 
-int NvRead(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex, char** nvBytes, int* nvBytesLength)
+int NvRead(const tpmCtx* ctx, 
+           const char* tpmOwnerSecretKey, 
+           size_t tpmOwnerSecretKeyLength, 
+           uint32_t nvIndex, 
+           char** const nvBytes, 
+           int* const nvBytesLength)
 {
     TSS2_RC                 rval;
     TSS2L_SYS_AUTH_RESPONSE sessionsDataOut = {0};
@@ -218,7 +228,12 @@ int NvRead(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength,
 }
 
 
-int NvWrite(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength, uint32_t nvIndex, void* nvBytes, size_t nvBytesLength)
+int NvWrite(const tpmCtx* ctx, 
+            const char* tpmOwnerSecretKey, 
+            size_t tpmOwnerSecretKeyLength, 
+            uint32_t nvIndex, 
+            const void* nvBytes, 
+            size_t nvBytesLength)
 {
     TSS2_RC                 rval;
     size_t                  pos  = 0;        // offset into nbBytes
@@ -264,7 +279,6 @@ int NvWrite(tpmCtx* ctx, char* tpmOwnerSecretKey, size_t tpmOwnerSecretKeyLength
 
         pos += nvWriteData.size;
     }
-
 
     return TSS2_RC_SUCCESS;
 }

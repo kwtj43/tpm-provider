@@ -1,7 +1,3 @@
-#--------------------------------------------------------------------------------------------------
-# See 'Readme.md' for information
-#--------------------------------------------------------------------------------------------------
-
 before_script:
   - git config --global http.proxy http://proxy-us.intel.com:911
   - git config --global https.proxy http://proxy-us.intel.com:911
@@ -9,11 +5,15 @@ before_script:
   - export http_proxy=http://proxy-us.intel.com:911
   - export https_proxy=http://proxy-us.intel.com:911
   - export no_proxy=127.0.0.1,localhost,gitlab.devtools.intel.com
-  - cd $CI_PROJECT_DIR
+
+# the gta-unit-test is a container that remains alive across builds/tests.  clean up
+# the gitlab url otherwise they accumulate and expire
+after_script:
+  - git config --global --unset url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.devtools.intel.com".insteadOf
 
 stages:
   - build
-#  - test
+  - test
 
 build:gta:
   stage: build
@@ -25,19 +25,16 @@ build:gta:
   artifacts:
     paths:
       - "out/tpmprovider.test"
-    expire_in: 1 week
 
-# test:
-#   stage: test
-#   image: gta-devel
-#   tags:
-#     - gta
-#   script:
-#     - cicd/start-tpm-simulator.sh
-#     - cicd/orig.sh
-#     - go test ./... -tags=gitlab -coverpkg=./... -coverprofile cover.out
-#     - go tool cover -func cover.out
-#     - go tool cover -html=cover.out -o cover.html
-#   artifacts:
-#     paths:
-#       - "cover.html"
+test:
+  stage: test
+  image: gta-devel
+  tags:
+    - gta-unit-test
+  script:
+    - go test ./... -tags=unit_test -coverpkg=./... -coverprofile out/cover.out
+    - go tool cover -func out/cover.out
+    - go tool cover -html=out/cover.out -o out/cover.html
+  artifacts:
+    paths:
+      - "out/cover.html"

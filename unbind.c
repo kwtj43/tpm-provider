@@ -5,17 +5,17 @@
 #include "tpm20linux.h"
 #include <tss2/tss2_mu.h>
 
-int Unbind(tpmCtx* ctx, 
-            const char* keySecret, 
-            size_t keySecretLength, 
-            const char* publicKeyBytes, 
-            size_t publicKeyBytesLength,
-            const char* privateKeyBytes, 
-            size_t privateKeyBytesLength,
-            const char* encryptedBytes, 
-            size_t encryptedBytesLength,
-            char** decryptedData,
-            int* decryptedDataLength)
+int Unbind(const tpmCtx* ctx, 
+           const char* keySecret, 
+           size_t keySecretLength, 
+           const char* publicKeyBytes, 
+           size_t publicKeyBytesLength,
+           const char* privateKeyBytes, 
+           size_t privateKeyBytesLength,
+           const char* encryptedBytes, 
+           size_t encryptedBytesLength,
+           char** decryptedData,
+           int* decryptedDataLength)
 {
     TSS2_RC                 rval;
     TPM2_HANDLE             bindingKeyHandle = 0;
