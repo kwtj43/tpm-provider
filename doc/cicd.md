@@ -87,13 +87,11 @@ The following instructions describe how to setup a gitlab-runner that executes t
     ```export https_proxy=http://proxy-us.intel.com:911```
 
     ```export no_proxy=gitlab.devtools.intel.com```
-6) Git config with proxy settings
+6) Git config with proxy settings. *Note: gitlab-runners/.gitlab-ci.yml deploy a token that is used to authorize access to git access during builds.*
 
 	```git config --global http.proxy http://proxy-us.intel.com:911```
 
 	```git config --global https.proxy http://proxy-us.intel.com:911```
-
-	```git config --global url."ssh://git@gitlab.devtools.intel.com:29418".insteadOf https://gitlab.devtools.intel.com```
 
 7) Install and start ssh in container.
 
