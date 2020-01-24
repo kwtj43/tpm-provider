@@ -343,19 +343,26 @@ int CreateAik(const tpmCtx* ctx,
     //
     // tpm2_getpubak -e hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -o hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -P hex:beeffeedbeeffeedbeeffeedbeeffeedbeeffeed -E 0x81010000 -k 0x81018000 -f /tmp/aik -n /tmp/aikName
     //
-    if(PublicKeyExists(ctx, TPM_HANDLE_AIK) != 0)
+    if (PublicKeyExists(ctx, TPM_HANDLE_AIK) == 0)
     {
-        rval = getpubak(ctx->sys, &ownerAuth, &aikAuth);
-        if(rval != TPM2_RC_SUCCESS)
+        DEBUG("The AIK handle at %x already exists. Clearing the existing handle", TPM_HANDLE_AIK);
+        // Clear the existing provisioned AIK
+        rval = ClearKeyHandle(ctx->sys, &ownerAuth, TPM_HANDLE_AIK);
+        if (rval != TPM2_RC_SUCCESS)
         {
             return rval;
         }
-    }
-    else
-    {
-        DEBUG("The EK handle at %x already exists and won't be created", TPM_HANDLE_AIK);
+        DEBUG("ClearKeyHandle: rval %x | TPM_HANDLE_AIK %x", rval, TPM_HANDLE_AIK);
     }
 
+    // Provision the newly minted AIK
+    rval = getpubak(ctx->sys, &ownerAuth, &aikAuth);
+    if (rval != TPM2_RC_SUCCESS)
+    {
+        return rval;
+    }
+    DEBUG("getpubak: rval %x | TPM_HANDLE_AIK %x", rval, TPM_HANDLE_AIK);
+    
     return TSS2_RC_SUCCESS;
 }
 

@@ -143,3 +143,33 @@ int ReadPublic(const tpmCtx* ctx,
 
     return 0;
 }
+
+//
+// ClearKeyHandle clears a key from the TPM. Returns an integer value indicating whether the key was cleared:
+// Zero:     Key at handle cleared
+// Non-zero: Key clearing failed. Error code from Tss2_Sys_EvictControl.
+//
+int ClearKeyHandle(TSS2_SYS_CONTEXT *sys, TPM2B_AUTH *ownerAuth, TPM_HANDLE keyHandle)
+{
+    TSS2_RC rval;
+    TSS2L_SYS_AUTH_RESPONSE sessionsDataOut = {0};
+    TSS2L_SYS_AUTH_COMMAND sessions_data = {1, {{
+                                                   .sessionHandle = TPM2_RS_PW,
+                                                   .nonce = TPM2B_EMPTY_INIT,
+                                                   .hmac = TPM2B_EMPTY_INIT,
+                                                   .sessionAttributes = 0,
+                                               }}};
+
+    memcpy(&sessions_data.auths[0].hmac, ownerAuth, sizeof(TPM2B_AUTH));
+
+    TSS2L_SYS_AUTH_RESPONSE sessions_data_out;
+
+    rval = Tss2_Sys_EvictControl(sys, TPM2_RH_OWNER, keyHandle, &sessions_data, keyHandle, &sessions_data_out);
+    if (rval != TPM2_RC_SUCCESS)
+    {
+        ERROR("Key clearing failed. TPM2_EvictControl Error. TPM Error:0x%x", rval);
+        return rval;
+    }
+
+    return rval;
+}
