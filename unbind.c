@@ -41,9 +41,43 @@ int Unbind(const tpmCtx* ctx,
     *decryptedDataLength = 0;
 
     //---------------------------------------------------------------------------------------------
+    // Make sure pointers are valid
+    //---------------------------------------------------------------------------------------------
+    if (keySecret == NULL)
+    {
+        ERROR("Invalid keySecret parameter");
+        return -1;
+    }
+
+    if (publicKeyBytes == NULL)
+    {
+        ERROR("Invalid publicKeyBytes parameter");
+        return -1;
+    }
+
+    if (privateKeyBytes == NULL)
+    {
+        ERROR("Invalid privateKeyBytes parameter");
+        return -1;
+    }
+
+    if (encryptedBytes == NULL)
+    {
+        ERROR("Invalid encryptedBytes parameter");
+        return -1;
+    }
+
+    if (decryptedData == NULL)
+    {
+        ERROR("Invalid decryptedData parameter");
+        return -1;
+    }
+
+    //---------------------------------------------------------------------------------------------
     // Setup parameters and call Tss2_Sys_Load
     //---------------------------------------------------------------------------------------------
     offset = 0;
+    DEBUG("==> publicKeyBytesLength: %x", publicKeyBytesLength);
     rval = Tss2_MU_TPM2B_PUBLIC_Unmarshal(publicKeyBytes, publicKeyBytesLength, &offset, &inPublic);
     if (rval != TSS2_RC_SUCCESS)
     {
@@ -52,6 +86,7 @@ int Unbind(const tpmCtx* ctx,
     }
 
     offset = 0;
+    DEBUG("==> privateKeyBytesLength: %x", privateKeyBytesLength);
     rval = Tss2_MU_TPM2B_PRIVATE_Unmarshal(privateKeyBytes, privateKeyBytesLength, &offset, &inPrivate);
     if (rval != TSS2_RC_SUCCESS)
     {
@@ -65,13 +100,13 @@ int Unbind(const tpmCtx* ctx,
     name.size = sizeof(name) - 2;
 
     rval = Tss2_Sys_Load(ctx->sys, 
-                            TPM_HANDLE_PRIMARY, 
-                            &sessionData, 
-                            &inPrivate,
-                            &inPublic,
-                            &bindingKeyHandle,
-                            &name,
-                            NULL);
+                         TPM_HANDLE_PRIMARY, 
+                         &sessionData, 
+                         &inPrivate,
+                         &inPublic,
+                         &bindingKeyHandle,
+                         &name,
+                         &sessionsDataOut);
 
     if (rval != TSS2_RC_SUCCESS)
     {
@@ -79,16 +114,21 @@ int Unbind(const tpmCtx* ctx,
         return rval;
     }
 
+    DEBUG("==> bindingKeyHandle: %x", bindingKeyHandle)
+
     //---------------------------------------------------------------------------------------------
     // Setup parameters and call Tss2_Sys_RSA_Decrypt
     //---------------------------------------------------------------------------------------------
 
     // key password
+    DEBUG("==> keySecretLength: %x", keySecretLength)
     authSession.count = 1;
+    authSession.auths[0].sessionHandle = TPM2_RS_PW;
     authSession.auths[0].hmac.size = keySecretLength;
     memcpy(&authSession.auths[0].hmac.buffer, keySecret, keySecretLength);
 
     // encrypted data
+    DEBUG("==> encryptedBytesLength: %x", encryptedBytesLength);
     cipherText.size = encryptedBytesLength;
     memcpy(cipherText.buffer, encryptedBytes, encryptedBytesLength);
 

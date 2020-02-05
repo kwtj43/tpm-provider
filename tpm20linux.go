@@ -529,7 +529,7 @@ func (tpm *tpm20Linux) CreatePrimaryHandle(tpmOwnerSecretKey []byte, handle uint
 		C.size_t(len(tpmOwnerSecretKey)))
 
 	if rc != 0 {
-		return fmt.Errorf("Unbind returned error code %x", rc)
+		return fmt.Errorf("CreatePrimaryHandle returned error code %x", rc)
 	}
 
 	return nil
