@@ -137,7 +137,4 @@ type TpmProvider interface {
 	// TODO
 	//
 	PublicKeyExists(handle uint32) (bool, error)
-
-	// Remove...?
-	ReadPublic(tpmOwnerSecretKey string, handle uint32) ([]byte, error)
 }

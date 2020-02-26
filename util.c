@@ -106,44 +106,6 @@ int PublicKeyExists(const tpmCtx* ctx, uint32_t handle)
     return rval;
 }
 
-
-int ReadPublic(const tpmCtx* ctx, 
-               uint32_t handle, 
-               char** const public, 
-               int* const publicLength)
-{
-    TSS2_RC                 rval;
-    TSS2L_SYS_AUTH_RESPONSE sessionsDataOut = {0};
-    TPM2B_PUBLIC            inPublic = TPM2B_EMPTY_INIT;;
-    TPM2B_NAME              name = TPM2B_TYPE_INIT(TPM2B_NAME, name);
-    TPM2B_NAME              qualified_name = TPM2B_TYPE_INIT(TPM2B_NAME, name);
-
-    rval = Tss2_Sys_ReadPublic(ctx->sys, handle, 0, &inPublic, &name, &qualified_name, &sessionsDataOut);
-    if (rval != TSS2_RC_SUCCESS)
-    {
-        return rval;
-    }
-
-    if(inPublic.publicArea.unique.rsa.size == 0 || inPublic.publicArea.unique.rsa.size > ARRAY_SIZE(inPublic.publicArea.unique.rsa.buffer))
-    {
-        ERROR("ReadPublic:  Invalid buffer size");
-        return -1;
-    }
-
-    // this will be freed by cgo in tpmlinx20.go
-    *public = (char*)calloc(inPublic.publicArea.unique.rsa.size, 1);
-    if (!*public)
-    {
-        ERROR("ReadPublic: Could not allocated buffer");
-        return -1;
-    }
-
-    memcpy(*public, inPublic.publicArea.unique.rsa.buffer, inPublic.publicArea.unique.rsa.size);
-    *publicLength = inPublic.publicArea.unique.rsa.size;
-
-    return 0;
-}
-
 //
 // ClearKeyHandle clears a key from the TPM. Returns an integer value indicating whether the key was cleared:
 // Zero:     Key at handle cleared
@@ -159,6 +121,12 @@ int ClearKeyHandle(TSS2_SYS_CONTEXT *sys, TPM2B_AUTH *ownerAuth, TPM_HANDLE keyH
                                                    .hmac = TPM2B_EMPTY_INIT,
                                                    .sessionAttributes = 0,
                                                }}};
+
+    if (ownerAuth == NULL)
+    {
+        ERROR("The owner auth must be provided");
+        return -1;
+    }
 
     memcpy(&sessions_data.auths[0].hmac, ownerAuth, sizeof(TPM2B_AUTH));
 

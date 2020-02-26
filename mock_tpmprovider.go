@@ -127,8 +127,3 @@ func (mockedTpm MockedTpmProvider) PublicKeyExists(handle uint32) (bool, error) 
 	args := mockedTpm.Called(handle)
 	return args.Bool(0), args.Error(1)
 }
-
-func (mockedTpm MockedTpmProvider) ReadPublic(tpmOwnerSecretKey string, handle uint32) ([]byte, error) {
-	args := mockedTpm.Called(tpmOwnerSecretKey, handle)
-	return args.Get(0).([]byte), args.Error(1)
-}

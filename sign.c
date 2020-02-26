@@ -38,6 +38,57 @@ int Sign(const tpmCtx* ctx,
     *signatureBytesLength = 0;
 
     //---------------------------------------------------------------------------------------------
+    // Check input parameters
+    //---------------------------------------------------------------------------------------------
+    if (keySecret == NULL) 
+    {
+        ERROR("The key secret must be provided");
+        return -1;
+    }
+
+    if (keySecretLength ==  0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    {
+        ERROR("Invalid key secret length: %x", keySecretLength);
+        return -1;
+    }
+
+    if (publicKeyBytes == NULL)
+    {
+        ERROR("The public key bytes must be provided");
+        return -1;
+    }
+
+    if (privateKeyBytes == NULL)
+    {
+        ERROR("The private key bytes must be provided");
+        return -1;
+    }
+
+    if (hashBytes == NULL)
+    {
+        ERROR("The hash bytes must be provided");
+        return -1;
+    }
+
+    if (hashBytesLength == 0 || hashBytesLength > ARRAY_SIZE(hash.buffer))
+    {
+        ERROR("Invalid hash bytes length: %x", hashBytesLength);
+        return -1;
+    }
+
+    if (signatureBytes == NULL)
+    {
+        ERROR("The signature bytes must be provided");
+        return -1;
+    }
+
+    if (signatureBytesLength == NULL)
+    {
+        ERROR("The signature bytes length cannot be null");
+        return -1;
+    }
+
+    //---------------------------------------------------------------------------------------------
     // Setup parameters and call Tss2_Sys_Load
     //---------------------------------------------------------------------------------------------
     offset = 0;
@@ -111,6 +162,11 @@ int Sign(const tpmCtx* ctx,
     //---------------------------------------------------------------------------------------------
     // Allocate and copy data for the out parameters (signatureBytes).  This will be free'd by go
     //---------------------------------------------------------------------------------------------
+    if (signature.signature.rsassa.sig.size == 0 || signature.signature.rsassa.sig.size > ARRAY_SIZE(signature.signature.rsassa.sig.buffer))
+    {
+        ERROR("Invalid signature bytes size: %x", signature.signature.rsassa.sig.size);
+        return -1;
+    }
     
     *signatureBytes = (unsigned char*)calloc(signature.signature.rsassa.sig.size, 1);
     if (!signatureBytes)

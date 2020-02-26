@@ -6,12 +6,12 @@
 
 
 // Based on https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/tools/tpm2_activatecredential.c
-int Tss2ActivateCredential(TSS2_SYS_CONTEXT* sys, 
-                           TPMS_AUTH_COMMAND* endorsePassword, 
-                           TPMS_AUTH_COMMAND* aikPassword, 
-                           TPM2B_ID_OBJECT* credentialBlob, 
-                           TPM2B_ENCRYPTED_SECRET* secret, 
-                           TPM2B_DIGEST* certInfoData)
+static int Tss2ActivateCredential(TSS2_SYS_CONTEXT* sys, 
+                                  TPMS_AUTH_COMMAND* endorsePassword, 
+                                  TPMS_AUTH_COMMAND* aikPassword, 
+                                  TPM2B_ID_OBJECT* credentialBlob, 
+                                  TPM2B_ENCRYPTED_SECRET* secret, 
+                                  TPM2B_DIGEST* certInfoData)
 {
     TSS2_RC                 rval;
     TPMI_SH_POLICY          sessionHandle = 0; 
@@ -31,8 +31,20 @@ int Tss2ActivateCredential(TSS2_SYS_CONTEXT* sys,
     nonceNewer.size = TPM2_SHA1_DIGEST_SIZE;
     nonceCaller.size = TPM2_SHA1_DIGEST_SIZE;
 
+    if (aikPassword == NULL) 
+    {
+        ERROR("The aik password cannot be null");
+        return -1;
+    }
+
     cmd_auth_array_password.count = 2;
     memcpy(&cmd_auth_array_password.auths[0], aikPassword, sizeof(TPMS_AUTH_COMMAND));
+
+    if (endorsePassword == NULL) 
+    {
+        ERROR("The endorsement password cannot be null");
+        return -1;
+    }
 
     cmd_auth_array_endorse.count = 1;
     memcpy(&cmd_auth_array_endorse.auths[0], endorsePassword, sizeof(TPMS_AUTH_COMMAND));
@@ -135,9 +147,9 @@ int ActivateCredential(const tpmCtx* ctx,
         return rval;
     }
 
-    if (certInfoData.size == 0)
+    if (certInfoData.size == 0 || certInfoData.size > ARRAY_SIZE(certInfoData.buffer))
     {
-        ERROR("No data was returned from ActivateCredentail");
+        ERROR("Incorrect certificate info size");
         return -1;
     }
 

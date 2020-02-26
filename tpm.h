@@ -179,10 +179,4 @@ int NvRelease(const tpmCtx* ctx,
 
 int PublicKeyExists(const tpmCtx* ctx, 
                     uint32_t handle);
-
-int ReadPublic(const tpmCtx* ctx, 
-               uint32_t handle, 
-               char** const public, 
-               int* const publicLength);
-
 #endif

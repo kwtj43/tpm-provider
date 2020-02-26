@@ -51,6 +51,30 @@ int CreateCertifiedKey(const tpmCtx* ctx,
         return -1;
     }
 
+    if (keySecret == NULL) 
+    {
+        ERROR("The owner secret key must be provided");
+        return -1;
+    }
+
+    if (keySecretLength == 0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    {
+        ERROR("The owner secret key length is incorrect: %x", keySecretLength);
+        return -1;
+    }
+
+    if (aikSecretKey == NULL) 
+    {
+        ERROR("The aik secret key must be provided");
+        return -1;
+    }
+
+    if (aikSecretKeyLength == 0 || aikSecretKeyLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    {
+        ERROR("The aik secret key length is incorrect: %x", aikSecretKeyLength);
+        return -1;
+    }
+
     //---------------------------------------------------------------------------------------------
     // Return an error if the public key at handle 0x81000000 (TPM_HANDLE_PRIMARY) has not been 
     // made.  It should have been created by WLA setup before calling this function.
