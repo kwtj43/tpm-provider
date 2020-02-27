@@ -11,7 +11,7 @@
 
 
 #include <stdlib.h>
-#include <stdio.h> // remove (printf?)
+#include <stdio.h>
 #include <string.h>
 #include <tss2/tss2_sys.h>
 #include <tss2/tss2-tcti-tabrmd.h>
