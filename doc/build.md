@@ -28,10 +28,10 @@ Currently, `tpm-provider` will be statically linked into go applications (ex. `g
     3. `docker image ls` should show `gta-devel`
 2. Start a new instance of the container, mounting the root code directory as `/docker_host` directory in the container...
     1. `docker run -it -v $(pwd):/docker_host gta-devel -p 9443:1443 /bin/bash` (run this command from the root directory of your development environment so that code projects will be available in the container at '/docker_host')
-    2. Configure git to access gitlab to resolve dependencies on other ISecL go libraries.
+    2. Configure git to access github to resolve dependencies on other ISecL go libraries.
         1. `git config --global http.proxy <proxy>`
         2. `git config --global https.proxy <proxy>`
-        3. `git config --global url."ssh://git@gitlab.devtools.intel.com:29418".insteadOf https://gitlab.devtools.intel.com`
+        3. `git config --global url."ssh://git@github.com".insteadOf https://github.com`
         4. Create ssh keys in ~/.ssh (id_rsa and id_rsa.pub)
     3. `cd /docker_host/tpm-provider`
     4. `make`
