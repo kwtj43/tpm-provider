@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include "tpm20linux.h"
@@ -41,6 +41,18 @@ static int getpubak(TSS2_SYS_CONTEXT *sys,
     };
 
     creation_pcr.count = 0;
+
+    if (secretKey == NULL) 
+    {
+        ERROR("The owner secret key cannot be null");
+        return -1;
+    }
+
+    if (aikSecretKey == NULL) 
+    {
+        ERROR("The aik secret key cannot be null");
+        return -1;
+    }
     
     inSensitive.sensitive.data.size = 0;
     inSensitive.size = inSensitive.sensitive.userAuth.size + 2;
@@ -209,6 +221,12 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
         .sessionAttributes = 0,
     }}};
 
+    if (secretKey == NULL) 
+    {
+        ERROR("The owner secret key cannot be null");
+        return -1;
+    }
+
     memcpy(&sessionsData.auths[0].hmac, secretKey, sizeof(TPM2B_AUTH));
 
     inSensitive.sensitive.data.size = 0;
@@ -235,8 +253,8 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
         inPublic.publicArea.objectAttributes |= TPMA_OBJECT_FIXEDTPM;
         inPublic.publicArea.objectAttributes |= TPMA_OBJECT_FIXEDPARENT;
         inPublic.publicArea.objectAttributes |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-        inPublic.publicArea.authPolicy.size = 32;
-        memcpy(inPublic.publicArea.authPolicy.buffer, auth_policy, 32);
+        inPublic.publicArea.authPolicy.size = ARRAY_SIZE(auth_policy);
+        memcpy(inPublic.publicArea.authPolicy.buffer, auth_policy, ARRAY_SIZE(auth_policy));
 
         inPublic.publicArea.type = TPM2_ALG_RSA; // 0x1 from command line
 
@@ -384,9 +402,9 @@ int GetAikName(const tpmCtx* ctx,
         return rval;
     }
 
-    if (name.size > ARRAY_SIZE(name.name))
+    if (name.size == 0 || name.size > ARRAY_SIZE(name.name))
     {
-        ERROR("Aik name exceeded length %x", ARRAY_SIZE(name.name))
+        ERROR("Invalid aik name length: %x", name.size)
         return -1;
     }
 

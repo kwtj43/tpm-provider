@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include "tpm20linux.h"
@@ -48,6 +48,30 @@ int CreateCertifiedKey(const tpmCtx* ctx,
     if(!keyOut)
     {
         ERROR("The certified key was not provided");
+        return -1;
+    }
+
+    if (keySecret == NULL) 
+    {
+        ERROR("The owner secret key must be provided");
+        return -1;
+    }
+
+    if (keySecretLength == 0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    {
+        ERROR("The owner secret key length is incorrect: %x", keySecretLength);
+        return -1;
+    }
+
+    if (aikSecretKey == NULL) 
+    {
+        ERROR("The aik secret key must be provided");
+        return -1;
+    }
+
+    if (aikSecretKeyLength == 0 || aikSecretKeyLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    {
+        ERROR("The aik secret key length is incorrect: %x", aikSecretKeyLength);
         return -1;
     }
 

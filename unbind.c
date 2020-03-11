@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include "tpm20linux.h"
@@ -41,35 +41,53 @@ int Unbind(const tpmCtx* ctx,
     *decryptedDataLength = 0;
 
     //---------------------------------------------------------------------------------------------
-    // Make sure pointers are valid
+    // Check input parameters
     //---------------------------------------------------------------------------------------------
     if (keySecret == NULL)
     {
-        ERROR("Invalid keySecret parameter");
+        ERROR("Invalid key secret parameter");
+        return -1;
+    }
+
+    if (keySecretLength == 0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    {
+        ERROR("Invalid key secret length: %x", keySecretLength)
         return -1;
     }
 
     if (publicKeyBytes == NULL)
     {
-        ERROR("Invalid publicKeyBytes parameter");
+        ERROR("Invalid public key bytes parameter");
         return -1;
     }
 
     if (privateKeyBytes == NULL)
     {
-        ERROR("Invalid privateKeyBytes parameter");
+        ERROR("Invalid private key bytes parameter");
         return -1;
     }
 
     if (encryptedBytes == NULL)
     {
-        ERROR("Invalid encryptedBytes parameter");
+        ERROR("Invalid encrypted bytes parameter");
+        return -1;
+    }
+
+    if (encryptedBytesLength == 0 || encryptedBytesLength > BUFFER_SIZE(TPM2B_PUBLIC_KEY_RSA, buffer))
+    {
+        ERROR("Invalid encrypted bytes length: %x", encryptedBytesLength);
         return -1;
     }
 
     if (decryptedData == NULL)
     {
-        ERROR("Invalid decryptedData parameter");
+        ERROR("Invalid decrypted data parameter");
+        return -1;
+    }
+
+   if (decryptedDataLength == NULL)
+    {
+        ERROR("Invalid decrypted data length parameter");
         return -1;
     }
 
@@ -157,6 +175,11 @@ int Unbind(const tpmCtx* ctx,
     //---------------------------------------------------------------------------------------------
     // Allocate and copy data for the out parameters (decryptedData).  This will be free'd by go
     //---------------------------------------------------------------------------------------------
+    if (message.size == 0 || message.size > BUFFER_SIZE(TPM2B_PUBLIC_KEY_RSA, buffer)) 
+    {
+        ERROR("Invalid message size: %x", message.size)
+        return -1;
+    }
     
     *decryptedData = (unsigned char*)calloc(message.size, 1);
     if (!decryptedData)

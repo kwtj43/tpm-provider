@@ -1,7 +1,7 @@
 // +build unit_test
 
 /*
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
 package tpmprovider
@@ -126,9 +126,4 @@ func (mockedTpm MockedTpmProvider) Sign(certifiedKey *CertifiedKey, keySecret []
 func (mockedTpm MockedTpmProvider) PublicKeyExists(handle uint32) (bool, error) {
 	args := mockedTpm.Called(handle)
 	return args.Bool(0), args.Error(1)
-}
-
-func (mockedTpm MockedTpmProvider) ReadPublic(tpmOwnerSecretKey string, handle uint32) ([]byte, error) {
-	args := mockedTpm.Called(tpmOwnerSecretKey, handle)
-	return args.Get(0).([]byte), args.Error(1)
 }

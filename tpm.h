@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #ifndef __TPM_H__
@@ -179,10 +179,4 @@ int NvRelease(const tpmCtx* ctx,
 
 int PublicKeyExists(const tpmCtx* ctx, 
                     uint32_t handle);
-
-int ReadPublic(const tpmCtx* ctx, 
-               uint32_t handle, 
-               char** const public, 
-               int* const publicLength);
-
 #endif

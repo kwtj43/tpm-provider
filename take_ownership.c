@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include "tpm20linux.h"
@@ -13,6 +13,18 @@ static int change_auth(TSS2_SYS_CONTEXT* sys,
 
     TSS2_RC                 rval;
     TSS2L_SYS_AUTH_COMMAND  sessionsData = {0};
+
+    if (newSecretKey == NULL) 
+    {
+        ERROR("The new secret key must be provided");
+        return -1;
+    }
+
+    if (oldSecretKey == NULL)
+    {
+        ERROR("The old secret key must be provided");
+        return -1;
+    }
 
     sessionsData.count = 1;
     sessionsData.auths[0].sessionHandle = TPM2_RS_PW;
