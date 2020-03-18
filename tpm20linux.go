@@ -9,7 +9,6 @@ package tpmprovider
 
 //// The following CFLAGS require 'export CGO_CFLAGS_ALLOW="-f.*"' in the executable that
 //// uses tpm-provider (i.e. go-trust-agent and workload-agent).
-
 // #cgo CFLAGS: -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv -fstack-protector-strong
 // #cgo LDFLAGS: -ltss2-sys -ltss2-tcti-tabrmd -ltss2-mu -lssl -lcrypto
 // #include "tpm.h"
@@ -17,7 +16,8 @@ import "C"
 
 import (
 	"encoding/binary"
-	"errors"
+	"encoding/hex"
+	"github.com/pkg/errors"
 	"fmt"
 	"unsafe"
 )
@@ -25,6 +25,11 @@ import (
 type linuxTpmFactory struct {
 	TpmFactory
 }
+
+const (
+	INVALID_OWNER_SECRET_KEY = "Invalid owner secret key"
+	INVALID_AIK_SECRET_KEY = "Invalid aik secret key"
+)
 
 func (linuxImpl linuxTpmFactory) NewTpmProvider() (TpmProvider, error) {
 	var ctx *C.tpmCtx
@@ -38,7 +43,6 @@ func (linuxImpl linuxTpmFactory) NewTpmProvider() (TpmProvider, error) {
 	return &tpmProvider, nil
 }
 
-// should not be public
 type tpm20Linux struct {
 	tpmCtx *C.tpmCtx
 }
@@ -52,114 +56,16 @@ func (t *tpm20Linux) Version() C.TPM_VERSION {
 	return C.Version(t.tpmCtx)
 }
 
-func (t *tpm20Linux) CreateSigningKey(secretKey []byte, aikSecretKey []byte) (*CertifiedKey, error) {
-	return t.createCertifiedKey(secretKey, aikSecretKey, C.TPM_CERTIFIED_KEY_USAGE_SIGNING)
-}
+func (t *tpm20Linux) TakeOwnership(ownerSecretKey string) error {
 
-func (t *tpm20Linux) CreateBindingKey(secretKey []byte, aikSecretKey []byte) (*CertifiedKey, error) {
-	return t.createCertifiedKey(secretKey, aikSecretKey, C.TPM_CERTIFIED_KEY_USAGE_BINDING)
-}
-
-func (t *tpm20Linux) createCertifiedKey(secretKey []byte, aikSecretKey []byte, keyUsage int) (*CertifiedKey, error) {
-
-	if secretKey == nil {
-		return nil, fmt.Errorf("The secret key was no provided")
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
 	}
 
-	if aikSecretKey == nil {
-		return nil, fmt.Errorf("The aik secret key was no provided")
-	}
-
-	var key C.CertifiedKey
-	defer C.free(unsafe.Pointer(key.publicKey.buffer))
-	defer C.free(unsafe.Pointer(key.privateBlob.buffer))
-	defer C.free(unsafe.Pointer(key.keySignature.buffer))
-	defer C.free(unsafe.Pointer(key.keyAttestation.buffer))
-	defer C.free(unsafe.Pointer(key.keyName.buffer))
-
-	rc := C.CreateCertifiedKey(t.tpmCtx,
-		&key,
-		C.TPM_CERTIFIED_KEY_USAGE(keyUsage),
-		(*C.char)(unsafe.Pointer(&secretKey[0])),
-		C.size_t(len(secretKey)),
-		(*C.char)(unsafe.Pointer(&aikSecretKey[0])),
-		C.size_t(len(aikSecretKey)))
-
-	if rc == 0 {
-		return &CertifiedKey{
-			Version:        V20,
-			Usage:          keyUsage,
-			PublicKey:      C.GoBytes(unsafe.Pointer(key.publicKey.buffer), key.publicKey.size),
-			PrivateKey:     C.GoBytes(unsafe.Pointer(key.privateBlob.buffer), key.privateBlob.size),
-			KeySignature:   C.GoBytes(unsafe.Pointer(key.keySignature.buffer), key.keySignature.size),
-			KeyAttestation: C.GoBytes(unsafe.Pointer(key.keyAttestation.buffer), key.keyAttestation.size),
-			KeyName:        C.GoBytes(unsafe.Pointer(key.keyName.buffer), key.keyName.size),
-		}, nil
-	}
-
-	return nil, fmt.Errorf("CreateCertifiedKey returned error code: %x", rc)
-}
-
-func (t *tpm20Linux) Unbind(certifiedKey *CertifiedKey, keySecret []byte, encryptedData []byte) ([]byte, error) {
-	var returnValue []byte
-	var decryptedBytes *C.char
-	var decryptedBytesLength C.int
-
-	rc := C.Unbind(t.tpmCtx,
-		(*C.char)(unsafe.Pointer(&keySecret[0])),
-		C.size_t(len(keySecret)),
-		(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])),
-		C.size_t(len(certifiedKey.PublicKey)),
-		(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])),
-		C.size_t(len(certifiedKey.PrivateKey)),
-		(*C.char)(unsafe.Pointer(&encryptedData[0])),
-		C.size_t(len(encryptedData)),
-		&decryptedBytes,
-		&decryptedBytesLength)
-
-	if rc != 0 {
-		return nil, fmt.Errorf("Unbind returned error code %x", rc)
-	}
-
-	defer C.free(unsafe.Pointer(decryptedBytes))
-
-	returnValue = C.GoBytes(unsafe.Pointer(decryptedBytes), decryptedBytesLength)
-	return returnValue, nil
-}
-
-func (t *tpm20Linux) Sign(certifiedKey *CertifiedKey, keySecret []byte, hashed []byte) ([]byte, error) {
-	var returnValue []byte
-	var signatureBytes *C.char
-	var signatureBytesLength C.int
-
-	rc := C.Sign(t.tpmCtx,
-		(*C.char)(unsafe.Pointer(&keySecret[0])),
-		C.size_t(len(keySecret)),
-		(*C.char)(unsafe.Pointer(&certifiedKey.PublicKey[0])),
-		C.size_t(len(certifiedKey.PublicKey)),
-		(*C.char)(unsafe.Pointer(&certifiedKey.PrivateKey[0])),
-		C.size_t(len(certifiedKey.PrivateKey)),
-		(*C.char)(unsafe.Pointer(&hashed[0])),
-		C.size_t(len(hashed)),
-		&signatureBytes,
-		&signatureBytesLength)
-
-	if rc != 0 {
-		return nil, fmt.Errorf("Sign returned error code %x", rc)
-	}
-
-	defer C.free(unsafe.Pointer(signatureBytes))
-
-	returnValue = C.GoBytes(unsafe.Pointer(signatureBytes), signatureBytesLength)
-	return returnValue, nil
-}
-
-func (t *tpm20Linux) TakeOwnership(tpmOwnerSecretKey string) error {
-
-	cTpmOwnerSecretKey := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecretKey))
-
-	rc := C.TakeOwnership(t.tpmCtx, cTpmOwnerSecretKey, C.size_t(len(tpmOwnerSecretKey)))
+	rc := C.TakeOwnership(t.tpmCtx, 
+						  (*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])), 
+						  C.size_t(len(ownerSecretKeyBytes)))
 	if rc != 0 {
 		return fmt.Errorf("TakeOwnership returned error code 0x%X", rc)
 	}
@@ -167,13 +73,17 @@ func (t *tpm20Linux) TakeOwnership(tpmOwnerSecretKey string) error {
 	return nil
 }
 
-func (t *tpm20Linux) IsOwnedWithAuth(tpmOwnerSecretKey string) (bool, error) {
+func (t *tpm20Linux) IsOwnedWithAuth(ownerSecretKey string) (bool, error) {
 
-	cTpmOwnerSecretKey := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecretKey))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return false, errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
 	// IsOwnedWithAuth returns 0 (true) if 'owned', -1 if 'not owned', all other values are errors
-	rc := C.IsOwnedWithAuth(t.tpmCtx, cTpmOwnerSecretKey, C.size_t(len(tpmOwnerSecretKey)))
+	rc := C.IsOwnedWithAuth(t.tpmCtx, 
+							(*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])), 
+							C.size_t(len(ownerSecretKeyBytes)))
 
 	if rc == 0 {
 		return true, nil
@@ -184,15 +94,15 @@ func (t *tpm20Linux) IsOwnedWithAuth(tpmOwnerSecretKey string) (bool, error) {
 	return false, fmt.Errorf("IsOwnedWithAuth returned error code 0x%X", rc)
 }
 
-func (t *tpm20Linux) GetAikBytes(tpmOwnerSecretKey string) ([]byte, error) {
+func (t *tpm20Linux) GetAikBytes() ([]byte, error) {
 	var returnValue []byte
-	var aikPublicBytes *C.char
+	var aikPublicBytes *C.uint8_t
 	var aikPublicBytesLength C.int
 
-	cTpmOwnerSecretKey := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecretKey))
+	rc := C.GetAikBytes(t.tpmCtx, 
+						&aikPublicBytes, 
+						&aikPublicBytesLength)
 
-	rc := C.GetAikBytes(t.tpmCtx, cTpmOwnerSecretKey, C.size_t(len(tpmOwnerSecretKey)), &aikPublicBytes, &aikPublicBytesLength)
 	if rc != 0 {
 		return nil, fmt.Errorf("GetAikBytes returned error code 0x%X", rc)
 	}
@@ -207,15 +117,14 @@ func (t *tpm20Linux) GetAikBytes(tpmOwnerSecretKey string) ([]byte, error) {
 	return returnValue, nil
 }
 
-func (t *tpm20Linux) GetAikName(tpmOwnerSecretKey string) ([]byte, error) {
+func (t *tpm20Linux) GetAikName() ([]byte, error) {
 	var returnValue []byte
-	var aikName *C.char
+	var aikName *C.uint8_t
 	var aikNameLength C.int
 
-	cTpmOwnerSecretKey := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecretKey))
-
-	rc := C.GetAikName(t.tpmCtx, cTpmOwnerSecretKey, C.size_t(len(tpmOwnerSecretKey)), &aikName, &aikNameLength)
+	rc := C.GetAikName(t.tpmCtx, 
+					   &aikName, 
+					   &aikNameLength)
 	if rc != 0 {
 		return nil, fmt.Errorf("GetAikName returned error code 0x%X", rc)
 	}
@@ -230,15 +139,23 @@ func (t *tpm20Linux) GetAikName(tpmOwnerSecretKey string) ([]byte, error) {
 	return returnValue, nil
 }
 
-func (t *tpm20Linux) CreateAik(tpmOwnerSecretKey string, aikSecretKey string) error {
+func (t *tpm20Linux) CreateAik(ownerSecretKey string, aikSecretKey string) error {
 
-	cTpmOwnerSecretKey := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecretKey))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
-	cAikSecretKey := C.CString(aikSecretKey)
-	defer C.free(unsafe.Pointer(cAikSecretKey))
+	aikSecretKeyBytes, err := validateAndConvertKey(aikSecretKey)
+	if err != nil {
+		return errors.Wrap(err, INVALID_AIK_SECRET_KEY)
+	}
 
-	rc := C.CreateAik(t.tpmCtx, cTpmOwnerSecretKey, C.size_t(len(tpmOwnerSecretKey)), cAikSecretKey, C.size_t(len(aikSecretKey)))
+	rc := C.CreateAik(t.tpmCtx, 
+					  (*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+					  C.size_t(len(ownerSecretKeyBytes)), 
+					  (*C.uint8_t)(unsafe.Pointer(&aikSecretKeyBytes[0])), 
+					  C.size_t(len(aikSecretKeyBytes)))
 	if rc != 0 {
 		return fmt.Errorf("CreateAik return 0x%x", rc)
 	}
@@ -339,14 +256,13 @@ func getPcrSelectionBytes(pcrBanks []string, pcrs []int) ([]byte, error) {
 func (t *tpm20Linux) GetTpmQuote(aikSecretKey string, nonce []byte, pcrBanks []string, pcrs []int) ([]byte, error) {
 
 	var quoteBytes []byte
-	var cQuote *C.char
+	var cQuote *C.uint8_t
 	var cQuoteLength C.int
 
-	cAikSecretKey := C.CString(aikSecretKey)
-	defer C.free(unsafe.Pointer(cAikSecretKey))
-
-	cNonceBytes := C.CBytes(nonce)
-	defer C.free(cNonceBytes)
+	aikSecretKeyBytes, err := validateAndConvertKey(aikSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_AIK_SECRET_KEY)
+	}
 
 	// create a buffer that describes the pcr selction that can be
 	// used by tss2
@@ -355,18 +271,15 @@ func (t *tpm20Linux) GetTpmQuote(aikSecretKey string, nonce []byte, pcrBanks []s
 		return nil, err
 	}
 
-	cPcrSelectionBytes := C.CBytes(pcrSelectionBytes)
-	defer C.free(cPcrSelectionBytes)
-
 	rc := C.GetTpmQuote(t.tpmCtx,
-		cAikSecretKey,
-		C.size_t(len(aikSecretKey)),
-		cPcrSelectionBytes,
-		C.size_t(len(pcrSelectionBytes)),
-		cNonceBytes,
-		C.size_t(len(nonce)),
-		&cQuote,
-		&cQuoteLength)
+						(*C.uint8_t)(unsafe.Pointer(&aikSecretKeyBytes[0])),
+						C.size_t(len(aikSecretKeyBytes)),
+						(*C.uint8_t)(unsafe.Pointer(&pcrSelectionBytes[0])),
+						C.size_t(len(pcrSelectionBytes)),
+						(*C.uint8_t)(unsafe.Pointer(&nonce[0])),
+						C.size_t(len(nonce)),
+						&cQuote,
+						&cQuoteLength)
 
 	if rc != 0 {
 		return nil, fmt.Errorf("C.GetTpmQuote returned error code 0x%X", rc)
@@ -382,35 +295,34 @@ func (t *tpm20Linux) GetTpmQuote(aikSecretKey string, nonce []byte, pcrBanks []s
 	return quoteBytes, nil
 }
 
-func (t *tpm20Linux) ActivateCredential(tpmOwnerSecretKey string, aikSecretKey string, credentialBytes []byte, secretBytes []byte) ([]byte, error) {
+func (t *tpm20Linux) ActivateCredential(ownerSecretKey string, aikSecretKey string, credentialBytes []byte, secretBytes []byte) ([]byte, error) {
 
 	var returnValue []byte
-	var decrypted *C.char
+	var decrypted *C.uint8_t
 	var decryptedLength C.int
 
-	cTpmOwnerSecretKey := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecretKey))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
-	cAikSecretKey := C.CString(aikSecretKey)
-	defer C.free(unsafe.Pointer(cAikSecretKey))
-
-	cCredentialBytes := C.CBytes(credentialBytes)
-	defer C.free(cCredentialBytes)
-
-	cSecretBytes := C.CBytes(secretBytes)
-	defer C.free(cSecretBytes)
+	aikSecretKeyBytes, err := validateAndConvertKey(aikSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_AIK_SECRET_KEY)
+	}
 
 	rc := C.ActivateCredential(t.tpmCtx,
-		cTpmOwnerSecretKey,
-		C.size_t(len(tpmOwnerSecretKey)),
-		cAikSecretKey,
-		C.size_t(len(aikSecretKey)),
-		cCredentialBytes,
-		C.size_t(len(credentialBytes)),
-		cSecretBytes,
-		C.size_t(len(secretBytes)),
-		&decrypted,
-		&decryptedLength)
+								(*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+								C.size_t(len(ownerSecretKeyBytes)),
+								(*C.uint8_t)(unsafe.Pointer(&aikSecretKeyBytes[0])),
+								C.size_t(len(aikSecretKeyBytes)),
+								(*C.uint8_t)(unsafe.Pointer(&credentialBytes[0])),
+								C.size_t(len(credentialBytes)),
+								(*C.uint8_t)(unsafe.Pointer(&secretBytes[0])),
+								C.size_t(len(secretBytes)),
+								&decrypted,
+								&decryptedLength)
+
 	if rc != 0 {
 		return nil, fmt.Errorf("C.ActivateCredential returned error code 0x%X", rc)
 	}
@@ -425,16 +337,18 @@ func (t *tpm20Linux) ActivateCredential(tpmOwnerSecretKey string, aikSecretKey s
 	return returnValue, nil
 }
 
-func (t *tpm20Linux) NvDefine(tpmOwnerSecretKey string, nvIndex uint32, indexSize uint16) error {
+func (t *tpm20Linux) NvDefine(ownerSecretKey string, nvIndex uint32, indexSize uint16) error {
 
-	cTpmOwnerSecret := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecret))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
 	rc := C.NvDefine(t.tpmCtx,
-		cTpmOwnerSecret,
-		C.size_t(len(tpmOwnerSecretKey)),
-		C.uint32_t(nvIndex),
-		C.uint16_t(indexSize))
+					 (*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+					 C.size_t(len(ownerSecretKeyBytes)),
+					 C.uint32_t(nvIndex),
+					 C.uint16_t(indexSize))
 
 	if rc != 0 {
 		return fmt.Errorf("C.NvRead returned error code 0x%X", rc)
@@ -443,15 +357,17 @@ func (t *tpm20Linux) NvDefine(tpmOwnerSecretKey string, nvIndex uint32, indexSiz
 	return nil
 }
 
-func (t *tpm20Linux) NvRelease(tpmOwnerSecretKey string, nvIndex uint32) error {
+func (t *tpm20Linux) NvRelease(ownerSecretKey string, nvIndex uint32) error {
 
-	cTpmOwnerSecret := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecret))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
 	rc := C.NvRelease(t.tpmCtx,
-		cTpmOwnerSecret,
-		C.size_t(len(tpmOwnerSecretKey)),
-		C.uint32_t(nvIndex))
+					  (*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+					  C.size_t(len(ownerSecretKeyBytes)),
+					  C.uint32_t(nvIndex))
 
 	if rc != 0 {
 		return fmt.Errorf("C.NvRelease returned error code 0x%X", rc)
@@ -460,21 +376,23 @@ func (t *tpm20Linux) NvRelease(tpmOwnerSecretKey string, nvIndex uint32) error {
 	return nil
 }
 
-func (t *tpm20Linux) NvRead(tpmOwnerSecretKey string, nvIndex uint32) ([]byte, error) {
+func (t *tpm20Linux) NvRead(ownerSecretKey string, nvIndex uint32) ([]byte, error) {
 
 	var returnValue []byte
-	var nvData *C.char
+	var nvData *C.uint8_t
 	var nvDataLength C.int
 
-	cTpmOwnerSecret := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecret))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
 	rc := C.NvRead(t.tpmCtx,
-		cTpmOwnerSecret,
-		C.size_t(len(tpmOwnerSecretKey)),
-		C.uint32_t(nvIndex),
-		&nvData,
-		&nvDataLength)
+					(*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+					C.size_t(len(ownerSecretKeyBytes)),
+					C.uint32_t(nvIndex),
+					&nvData,
+					&nvDataLength)
 
 	if rc != 0 {
 		return nil, fmt.Errorf("C.NvRead returned error code 0x%X", rc)
@@ -490,20 +408,23 @@ func (t *tpm20Linux) NvRead(tpmOwnerSecretKey string, nvIndex uint32) ([]byte, e
 	return returnValue, nil
 }
 
-func (t *tpm20Linux) NvWrite(tpmOwnerSecretKey string, handle uint32, data []byte) error {
+func (t *tpm20Linux) NvWrite(ownerSecretKey string, handle uint32, data []byte) error {
 
-	cData := C.CBytes(data)
-	defer C.free(unsafe.Pointer(cData))
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
-	cTpmOwnerSecret := C.CString(tpmOwnerSecretKey)
-	defer C.free(unsafe.Pointer(cTpmOwnerSecret))
+	if data == nil || len(data) == 0 {
+		return errors.New("The data parameter cannot be null or empty")
+	}
 
 	rc := C.NvWrite(t.tpmCtx,
-		cTpmOwnerSecret,
-		C.size_t(len(tpmOwnerSecretKey)),
-		C.uint32_t(handle),
-		cData,
-		C.size_t(len(data)))
+					(*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+					C.size_t(len(ownerSecretKeyBytes)),
+					C.uint32_t(handle),
+					(*C.uint8_t)(unsafe.Pointer(&data[0])),
+					C.size_t(len(data)))
 
 	if rc != 0 {
 		return fmt.Errorf("C.NvWrite returned error code 0x%X", rc)
@@ -513,6 +434,7 @@ func (t *tpm20Linux) NvWrite(tpmOwnerSecretKey string, handle uint32, data []byt
 }
 
 func (tpm *tpm20Linux) NvIndexExists(nvIndex uint32) (bool, error) {
+
 	rc := C.NvIndexExists(tpm.tpmCtx, C.uint(nvIndex))
 	if rc == -1 {
 		return false, nil // KWT:  Differentiate between and error and index not there
@@ -525,12 +447,17 @@ func (tpm *tpm20Linux) NvIndexExists(nvIndex uint32) (bool, error) {
 	return true, nil
 }
 
-func (tpm *tpm20Linux) CreatePrimaryHandle(tpmOwnerSecretKey []byte, handle uint32) error {
+func (tpm *tpm20Linux) CreatePrimaryHandle(ownerSecretKey string, handle uint32) error {
+
+	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
+	if err != nil {
+		errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
 
 	rc := C.CreatePrimaryHandle(tpm.tpmCtx,
-		C.uint32_t(handle),
-		(*C.char)(unsafe.Pointer(&tpmOwnerSecretKey[0])),
-		C.size_t(len(tpmOwnerSecretKey)))
+								C.uint32_t(handle),
+								(*C.uint8_t)(unsafe.Pointer(&ownerSecretKeyBytes[0])),
+								C.size_t(len(ownerSecretKeyBytes)))
 
 	if rc != 0 {
 		return fmt.Errorf("CreatePrimaryHandle returned error code %x", rc)
@@ -539,11 +466,160 @@ func (tpm *tpm20Linux) CreatePrimaryHandle(tpmOwnerSecretKey []byte, handle uint
 	return nil
 }
 
+func (t *tpm20Linux) CreateSigningKey(signingSecretKey string, aikSecretKey string) (*CertifiedKey, error) {
+	return t.createCertifiedKey(signingSecretKey, aikSecretKey, C.TPM_CERTIFIED_KEY_USAGE_SIGNING)
+}
+
+func (t *tpm20Linux) CreateBindingKey(bindingSecretKey string, aikSecretKey string) (*CertifiedKey, error) {
+	return t.createCertifiedKey(bindingSecretKey, aikSecretKey, C.TPM_CERTIFIED_KEY_USAGE_BINDING)
+}
+
+func (t *tpm20Linux) createCertifiedKey(keySecret string, aikSecretKey string, keyUsage int) (*CertifiedKey, error) {
+
+	keySecretBytes, err := validateAndConvertKey(keySecret)
+	if err != nil {
+		return nil, errors.Wrap(err, "Invalid secret key")
+	}
+
+	aikSecretKeyBytes, err := validateAndConvertKey(aikSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_AIK_SECRET_KEY)
+	}
+
+	var key C.CertifiedKey
+
+	rc := C.CreateCertifiedKey(t.tpmCtx,
+								&key,
+								C.TPM_CERTIFIED_KEY_USAGE(keyUsage),
+								(*C.uint8_t)(unsafe.Pointer(&keySecretBytes[0])),
+								C.size_t(len(keySecretBytes)),
+								(*C.uint8_t)(unsafe.Pointer(&aikSecretKeyBytes[0])),
+								C.size_t(len(aikSecretKeyBytes)))
+
+	if rc == 0 {
+		defer C.free(unsafe.Pointer(key.publicKey.buffer))
+		defer C.free(unsafe.Pointer(key.privateBlob.buffer))
+		defer C.free(unsafe.Pointer(key.keySignature.buffer))
+		defer C.free(unsafe.Pointer(key.keyAttestation.buffer))
+		defer C.free(unsafe.Pointer(key.keyName.buffer))
+	
+		return &CertifiedKey{
+			Version:        V20,
+			Usage:          keyUsage,
+			PublicKey:      C.GoBytes(unsafe.Pointer(key.publicKey.buffer), key.publicKey.size),
+			PrivateKey:     C.GoBytes(unsafe.Pointer(key.privateBlob.buffer), key.privateBlob.size),
+			KeySignature:   C.GoBytes(unsafe.Pointer(key.keySignature.buffer), key.keySignature.size),
+			KeyAttestation: C.GoBytes(unsafe.Pointer(key.keyAttestation.buffer), key.keyAttestation.size),
+			KeyName:        C.GoBytes(unsafe.Pointer(key.keyName.buffer), key.keyName.size),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("CreateCertifiedKey returned error code: %x", rc)
+}
+
+func (t *tpm20Linux) Unbind(certifiedKey *CertifiedKey, bindingSecretKey string, encryptedData []byte) ([]byte, error) {
+	var returnValue []byte
+	var decryptedBytes *C.uint8_t
+	var decryptedBytesLength C.int
+
+	bindingSecretKeyBytes, err := validateAndConvertKey(bindingSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
+
+	rc := C.Unbind(t.tpmCtx,
+					(*C.uint8_t)(unsafe.Pointer(&bindingSecretKeyBytes[0])),
+					C.size_t(len(bindingSecretKeyBytes)),
+					(*C.uint8_t)(unsafe.Pointer(&certifiedKey.PublicKey[0])),
+					C.size_t(len(certifiedKey.PublicKey)),
+					(*C.uint8_t)(unsafe.Pointer(&certifiedKey.PrivateKey[0])),
+					C.size_t(len(certifiedKey.PrivateKey)),
+					(*C.uint8_t)(unsafe.Pointer(&encryptedData[0])),
+					C.size_t(len(encryptedData)),
+					&decryptedBytes,
+					&decryptedBytesLength)
+
+	if rc != 0 {
+		return nil, fmt.Errorf("Unbind returned error code %x", rc)
+	}
+
+	defer C.free(unsafe.Pointer(decryptedBytes))
+
+	returnValue = C.GoBytes(unsafe.Pointer(decryptedBytes), decryptedBytesLength)
+	return returnValue, nil
+}
+
+func (t *tpm20Linux) Sign(certifiedKey *CertifiedKey, signingSecretKey string, hashed []byte) ([]byte, error) {
+	var returnValue []byte
+	var signatureBytes *C.uint8_t
+	var signatureBytesLength C.int
+
+	signingSecretKeyBytes, err := validateAndConvertKey(signingSecretKey)
+	if err != nil {
+		return nil, errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+	}
+
+	if certifiedKey == nil {
+		return nil, errors.New("The certifiedKey parameter must be provided")
+	}
+
+	if len(certifiedKey.PublicKey) == 0 {
+		return nil, errors.New("No data was provided in the certified key's PublicKey")	
+	}
+
+	if len(certifiedKey.PrivateKey) == 0 {
+		return nil, errors.New("No data was provided in the certified key's PrivateKey")
+	}
+
+	if len(hashed) == 0 {
+		return nil, errors.New("No data was provided for the 'hashed' parameter")
+	}
+
+	rc := C.Sign(t.tpmCtx,
+				(*C.uint8_t)(unsafe.Pointer(&signingSecretKeyBytes[0])),
+				C.size_t(len(signingSecretKeyBytes)),
+				(*C.uint8_t)(unsafe.Pointer(&certifiedKey.PublicKey[0])),
+				C.size_t(len(certifiedKey.PublicKey)),
+				(*C.uint8_t)(unsafe.Pointer(&certifiedKey.PrivateKey[0])),
+				C.size_t(len(certifiedKey.PrivateKey)),
+				(*C.uint8_t)(unsafe.Pointer(&hashed[0])),
+				C.size_t(len(hashed)),
+				&signatureBytes,
+				&signatureBytesLength)
+
+	if rc != 0 {
+		return nil, fmt.Errorf("Sign returned error code %x", rc)
+	}
+
+	defer C.free(unsafe.Pointer(signatureBytes))
+
+	returnValue = C.GoBytes(unsafe.Pointer(signatureBytes), signatureBytesLength)
+	return returnValue, nil
+}
+
 func (tpm *tpm20Linux) PublicKeyExists(handle uint32) (bool, error) {
+
 	rc := C.PublicKeyExists(tpm.tpmCtx, C.uint(handle))
 	if rc != 0 {
-		return false, nil // KWT:  Differentiate between and error and index not there
+		return false, nil
 	}
 
 	return true, nil
+}
+
+func validateAndConvertKey(key string) ([]byte, error) {
+	if key == "" {
+		return nil, errors.New("The secret key cannot be empty")
+	}
+
+	if len(key) != 40 {
+		return nil, errors.New("The secret key length is invalid")
+	}
+
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "The secret key is not in a valid hex format")
+	}
+
+	return keyBytes, nil
 }

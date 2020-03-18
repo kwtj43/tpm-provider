@@ -316,9 +316,9 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
 // 
 //-------------------------------------------------------------------------------------------------
 int CreateAik(const tpmCtx* ctx, 
-              const char* tpmSecretKey, 
-              size_t secretKeyLength, 
-              const char* aikSecretKey, 
+              const uint8_t* ownerSecretKey, 
+              size_t ownerSecretKeyLength, 
+              const uint8_t* aikSecretKey, 
               size_t aikSecretKeyLength)
 {
 
@@ -327,14 +327,14 @@ int CreateAik(const tpmCtx* ctx,
     TPM2B_AUTH  ownerAuth = {0};
     TPM2B_AUTH  aikAuth = {0};
 
-    rval = str2Tpm2bAuth(tpmSecretKey, secretKeyLength, &ownerAuth);
+    rval = InitializeTpmAuth(&ownerAuth, ownerSecretKey, ownerSecretKeyLength);
     if(rval != 0)
     {
         ERROR("There was an error creating the tpm owner secret");
         return rval;
     }
 
-    rval = str2Tpm2bAuth(aikSecretKey, aikSecretKeyLength, &aikAuth);
+    rval = InitializeTpmAuth(&aikAuth, aikSecretKey, aikSecretKeyLength);
     if(rval != 0)
     {
         ERROR("There was an error creating the aik secret");
@@ -385,9 +385,7 @@ int CreateAik(const tpmCtx* ctx,
 }
 
 int GetAikName(const tpmCtx* ctx, 
-               const char* tpmSecretKey, 
-               size_t secretKeyLength, 
-               char** aikName, 
+               uint8_t** aikName, 
                int* aikNameLength)
 {
     TSS2_RC                 rval;
@@ -422,9 +420,7 @@ int GetAikName(const tpmCtx* ctx,
 }
 
 int GetAikBytes(const tpmCtx* ctx, 
-                const char* tpmSecretKey, 
-                size_t secretKeyLength, 
-                char** const aikBytes, 
+                uint8_t** const aikBytes, 
                 int* const aikBytesLength)
 {
     TSS2_RC                 rval;

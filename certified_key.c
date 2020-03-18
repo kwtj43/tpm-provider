@@ -8,9 +8,9 @@
 int CreateCertifiedKey(const tpmCtx* ctx, 
                        CertifiedKey* keyOut, 
                        TPM_CERTIFIED_KEY_USAGE keyUsage, 
-                       const char* keySecret, 
-                       size_t keySecretLength,  
-                       const char* aikSecretKey, 
+                       const uint8_t* ownerSecretKey, 
+                       size_t ownerSecretKeyLength,  
+                       const uint8_t* aikSecretKey, 
                        size_t aikSecretKeyLength)
 {
     TSS2_RC                 rval;
@@ -51,15 +51,15 @@ int CreateCertifiedKey(const tpmCtx* ctx,
         return -1;
     }
 
-    if (keySecret == NULL) 
+    if (ownerSecretKey == NULL) 
     {
         ERROR("The owner secret key must be provided");
         return -1;
     }
 
-    if (keySecretLength == 0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    if (ownerSecretKeyLength == 0 || ownerSecretKeyLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
     {
-        ERROR("The owner secret key length is incorrect: %x", keySecretLength);
+        ERROR("The owner secret key length is incorrect: %x", ownerSecretKeyLength);
         return -1;
     }
 
@@ -92,8 +92,11 @@ int CreateCertifiedKey(const tpmCtx* ctx,
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
 
-    memcpy(&inSensitive.sensitive.userAuth.buffer, keySecret, keySecretLength);
-    inSensitive.sensitive.userAuth.size = keySecretLength;
+    rval = InitializeTpmAuth(&inSensitive.sensitive.userAuth, ownerSecretKey, ownerSecretKeyLength);
+    if (rval != 0) {
+        return rval;
+    }
+
     inSensitive.size = inSensitive.sensitive.userAuth.size + 2;
 
     inPublic.publicArea.nameAlg = TPM2_ALG_SHA256;
@@ -117,22 +120,22 @@ int CreateCertifiedKey(const tpmCtx* ctx,
     else
     {
         ERROR("Invalid key usage: %d", keyUsage);
+        return -1;
     }
     
-
-    rval = Tss2_Sys_Create(ctx->sys, 
-                           TPM_HANDLE_PRIMARY, 
-                           &sessionData,
-                           &inSensitive,
-                           &inPublic,
-                           &outsideInfo,
-                           &creationPcr,
-                           &outPrivate,
-                           &outPublic, 
-                           &creationData, 
-                           &creationHash, 
-                           &creationTicket,
-                           &sessionsDataOut);
+    rval = TSS2_RETRY_EXP(Tss2_Sys_Create(ctx->sys, 
+                                            TPM_HANDLE_PRIMARY, 
+                                            &sessionData,
+                                            &inSensitive,
+                                            &inPublic,
+                                            &outsideInfo,
+                                            &creationPcr,
+                                            &outPrivate,
+                                            &outPublic, 
+                                            &creationData, 
+                                            &creationHash, 
+                                            &creationTicket,
+                                            &sessionsDataOut));
 
     if (rval != TPM2_RC_SUCCESS) 
     {
@@ -163,12 +166,16 @@ int CreateCertifiedKey(const tpmCtx* ctx,
     //---------------------------------------------------------------------------------------------
     authCommand.count = 2;
     authCommand.auths[0].sessionHandle = TPM2_RS_PW;
-    authCommand.auths[0].hmac.size = keySecretLength;
-    memcpy(&authCommand.auths[0].hmac.buffer, keySecret, keySecretLength);
+    rval = InitializeTpmAuth(&authCommand.auths[0].hmac, ownerSecretKey, ownerSecretKeyLength);
+    if (rval != 0) {
+        return rval;
+    }
  
     authCommand.auths[1].sessionHandle = TPM2_RS_PW;
-    authCommand.auths[1].hmac.size = aikSecretKeyLength;
-    memcpy(&authCommand.auths[1].hmac.buffer, aikSecretKey, aikSecretKeyLength);
+    rval = InitializeTpmAuth(&authCommand.auths[1].hmac, aikSecretKey, aikSecretKeyLength);
+    if (rval != 0) {
+        return rval;
+    }
 
     inScheme.scheme = TPM2_ALG_RSASSA;
     inScheme.details.rsassa.hashAlg = TPM2_ALG_SHA256;

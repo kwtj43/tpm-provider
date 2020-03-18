@@ -51,8 +51,8 @@ static int GetMaxNvBufferSize(TSS2_SYS_CONTEXT* sys, uint32_t* size)
 }
 
 int NvDefine(const tpmCtx* ctx, 
-             const char* tpmOwnerSecretKey, 
-             size_t tpmOwnerSecretKeyLength, 
+             const uint8_t* ownerSecretKey, 
+             size_t ownerSecretKeyLength, 
              uint32_t nvIndex, 
              uint16_t nvSize)
 {
@@ -64,13 +64,13 @@ int NvDefine(const tpmCtx* ctx,
  
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
-    rval = str2Tpm2bAuth(tpmOwnerSecretKey, tpmOwnerSecretKeyLength, &sessionData.auths[0].hmac);
+    rval = InitializeTpmAuth(&sessionData.auths[0].hmac, ownerSecretKey, ownerSecretKeyLength);
     if (rval != 0) 
     {
         return rval;
     }
 
-    rval = str2Tpm2bAuth(tpmOwnerSecretKey, tpmOwnerSecretKeyLength, &nvOwnerAuth);
+    rval = InitializeTpmAuth(&nvOwnerAuth, ownerSecretKey, ownerSecretKeyLength);
     if (rval != 0) 
     {
         return rval;
@@ -93,8 +93,8 @@ int NvDefine(const tpmCtx* ctx,
 }
 
 int NvRelease(const tpmCtx* ctx, 
-              const char* tpmOwnerSecretKey, 
-              size_t tpmOwnerSecretKeyLength, 
+              const uint8_t* ownerSecretKey, 
+              size_t ownerSecretKeyLength, 
               uint32_t nvIndex)
 {
     TSS2_RC                 rval;
@@ -102,7 +102,7 @@ int NvRelease(const tpmCtx* ctx,
 
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
-    rval = str2Tpm2bAuth(tpmOwnerSecretKey, tpmOwnerSecretKeyLength, &sessionData.auths[0].hmac);
+    rval = InitializeTpmAuth(&sessionData.auths[0].hmac, ownerSecretKey, ownerSecretKeyLength);
     if (rval != 0) 
     {
         return rval;
@@ -138,10 +138,10 @@ int NvIndexExists(const tpmCtx* ctx, uint32_t nvIndex)
 
 
 int NvRead(const tpmCtx* ctx, 
-           const char* tpmOwnerSecretKey, 
-           size_t tpmOwnerSecretKeyLength, 
+           const uint8_t* ownerSecretKey, 
+           size_t ownerSecretKeyLength, 
            uint32_t nvIndex, 
-           char** const nvBytes, 
+           uint8_t** const nvBytes, 
            int* const nvBytesLength)
 {
     TSS2_RC                 rval;
@@ -159,7 +159,7 @@ int NvRead(const tpmCtx* ctx,
 
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
-    rval = str2Tpm2bAuth(tpmOwnerSecretKey, tpmOwnerSecretKeyLength, &sessionData.auths[0].hmac);
+    rval = InitializeTpmAuth(&sessionData.auths[0].hmac, ownerSecretKey, ownerSecretKeyLength);
     if (rval != 0) 
     {
         return rval;
@@ -171,7 +171,6 @@ int NvRead(const tpmCtx* ctx,
         ERROR("GetMaxNvBufferSize returned error: 0x%x", rval);
         return rval;
     }
-
 
     // use the Tss2_Sys_NV_ReadPublic to find the total size of the index
     rval = Tss2_Sys_NV_ReadPublic(ctx->sys, nvIndex, NULL, &nvPublic, &name, NULL);
@@ -188,7 +187,7 @@ int NvRead(const tpmCtx* ctx,
         return -1;
     }
 
-    *nvBytes = calloc(nvBufferSize, 1);
+    *nvBytes = (uint8_t*)calloc(nvBufferSize, 1);
     if(!*nvBytes)
     {
         ERROR("Could not allocate nv buffer");
@@ -229,10 +228,10 @@ int NvRead(const tpmCtx* ctx,
 
 
 int NvWrite(const tpmCtx* ctx, 
-            const char* tpmOwnerSecretKey, 
-            size_t tpmOwnerSecretKeyLength, 
+            const uint8_t* ownerSecretKey, 
+            size_t ownerSecretKeyLength, 
             uint32_t nvIndex, 
-            const void* nvBytes, 
+            const uint8_t* nvBytes, 
             size_t nvBytesLength)
 {
     TSS2_RC                 rval;
@@ -244,7 +243,7 @@ int NvWrite(const tpmCtx* ctx,
 
     sessionData.count = 1;
     sessionData.auths[0].sessionHandle = TPM2_RS_PW;
-    rval = str2Tpm2bAuth(tpmOwnerSecretKey, tpmOwnerSecretKeyLength, &sessionData.auths[0].hmac);
+    rval = InitializeTpmAuth(&sessionData.auths[0].hmac, ownerSecretKey, ownerSecretKeyLength);
     if (rval != 0) 
     {
         return rval;

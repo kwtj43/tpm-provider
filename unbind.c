@@ -6,15 +6,15 @@
 #include <tss2/tss2_mu.h>
 
 int Unbind(const tpmCtx* ctx, 
-           const char* keySecret, 
-           size_t keySecretLength, 
-           const char* publicKeyBytes, 
+           const uint8_t* bindingSecretKey, 
+           size_t bindingSecretKeyLength, 
+           const uint8_t* publicKeyBytes, 
            size_t publicKeyBytesLength,
-           const char* privateKeyBytes, 
+           const uint8_t* privateKeyBytes, 
            size_t privateKeyBytesLength,
-           const char* encryptedBytes, 
+           const uint8_t* encryptedBytes, 
            size_t encryptedBytesLength,
-           char** decryptedData,
+           uint8_t** decryptedData,
            int* decryptedDataLength)
 {
     TSS2_RC                 rval;
@@ -43,15 +43,15 @@ int Unbind(const tpmCtx* ctx,
     //---------------------------------------------------------------------------------------------
     // Check input parameters
     //---------------------------------------------------------------------------------------------
-    if (keySecret == NULL)
+    if (bindingSecretKey == NULL)
     {
         ERROR("Invalid key secret parameter");
         return -1;
     }
 
-    if (keySecretLength == 0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    if (bindingSecretKeyLength == 0 || bindingSecretKeyLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
     {
-        ERROR("Invalid key secret length: %x", keySecretLength)
+        ERROR("Invalid key secret length: %x", bindingSecretKeyLength)
         return -1;
     }
 
@@ -85,7 +85,7 @@ int Unbind(const tpmCtx* ctx,
         return -1;
     }
 
-   if (decryptedDataLength == NULL)
+    if (decryptedDataLength == NULL)
     {
         ERROR("Invalid decrypted data length parameter");
         return -1;
@@ -138,20 +138,23 @@ int Unbind(const tpmCtx* ctx,
     // Setup parameters and call Tss2_Sys_RSA_Decrypt
     //---------------------------------------------------------------------------------------------
 
-    // key password
-    DEBUG("==> keySecretLength: %x", keySecretLength)
+    // binding key password
     authSession.count = 1;
     authSession.auths[0].sessionHandle = TPM2_RS_PW;
-    authSession.auths[0].hmac.size = keySecretLength;
-    memcpy(&authSession.auths[0].hmac.buffer, keySecret, keySecretLength);
+    rval = InitializeTpmAuth(&authSession.auths[0].hmac, bindingSecretKey, bindingSecretKeyLength);
+    if (rval != 0) {
+        return rval;
+    }
 
     // encrypted data
     DEBUG("==> encryptedBytesLength: %x", encryptedBytesLength);
     cipherText.size = encryptedBytesLength;
     memcpy(cipherText.buffer, encryptedBytes, encryptedBytesLength);
 
-    scheme.scheme = TPM2_ALG_OAEP; // TPM2_ALG_RSASSA;
+    scheme.scheme = TPM2_ALG_OAEP;
     scheme.details.oaep.hashAlg = TPM2_ALG_SHA256;
+    // scheme.scheme = TPM2_ALG_RSASSA;
+    // scheme.details.rsassa.hashAlg = TPM2_ALG_SHA256;
 
     sessionsDataOut.count = 1;
 
@@ -181,7 +184,7 @@ int Unbind(const tpmCtx* ctx,
         return -1;
     }
     
-    *decryptedData = (unsigned char*)calloc(message.size, 1);
+    *decryptedData = (uint8_t*)calloc(message.size, 1);
     if (!decryptedData)
     {
         ERROR("Could not allocate decrypted buffer");

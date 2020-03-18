@@ -6,15 +6,15 @@
 #include <tss2/tss2_mu.h>
 
 int Sign(const tpmCtx* ctx, 
-         const char* keySecret, 
-         size_t keySecretLength, 
-         const char* publicKeyBytes, 
+         const uint8_t* signingSecretKey, 
+         size_t signingSecretKeyLength, 
+         const uint8_t* publicKeyBytes, 
          size_t publicKeyBytesLength,
-         const char* privateKeyBytes, 
+         const uint8_t* privateKeyBytes, 
          size_t privateKeyBytesLength,
-         const char* hashBytes, 
+         const uint8_t* hashBytes, 
          size_t hashBytesLength,
-         char** const signatureBytes,
+         uint8_t** const signatureBytes,
          int* const signatureBytesLength)
 {
     TPM2_RC                 rval;
@@ -40,15 +40,15 @@ int Sign(const tpmCtx* ctx,
     //---------------------------------------------------------------------------------------------
     // Check input parameters
     //---------------------------------------------------------------------------------------------
-    if (keySecret == NULL) 
+    if (signingSecretKey == NULL) 
     {
         ERROR("The key secret must be provided");
         return -1;
     }
 
-    if (keySecretLength ==  0 || keySecretLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
+    if (signingSecretKeyLength ==  0 || signingSecretKeyLength > BUFFER_SIZE(TPM2B_AUTH, buffer))
     {
-        ERROR("Invalid key secret length: %x", keySecretLength);
+        ERROR("Invalid key secret length: %x", signingSecretKeyLength);
         return -1;
     }
 
@@ -113,13 +113,13 @@ int Sign(const tpmCtx* ctx,
     name.size = sizeof(name) - 2;
 
     rval = Tss2_Sys_Load(ctx->sys, 
-                            TPM_HANDLE_PRIMARY, 
-                            &sessionData, 
-                            &inPrivate,
-                            &inPublic,
-                            &signingKeyHandle,
-                            &name,
-                            NULL);
+                         TPM_HANDLE_PRIMARY, 
+                         &sessionData, 
+                         &inPrivate,
+                         &inPublic,
+                         &signingKeyHandle,
+                         &name,
+                         NULL);
 
     if(rval != TSS2_RC_SUCCESS)
     {
@@ -139,8 +139,10 @@ int Sign(const tpmCtx* ctx,
     // key password
     authCommand.count = 1;
     authCommand.auths[0].sessionHandle = TPM2_RS_PW;
-    authCommand.auths[0].hmac.size = keySecretLength;
-    memcpy(&authCommand.auths[0].hmac.buffer, keySecret, keySecretLength);
+    rval = InitializeTpmAuth(&authCommand.auths[0].hmac, signingSecretKey, signingSecretKeyLength);
+    if (rval != 0) {
+        return rval;
+    }
 
     rval = Tss2_Sys_Sign(ctx->sys, 
                             signingKeyHandle, 
@@ -168,7 +170,7 @@ int Sign(const tpmCtx* ctx,
         return -1;
     }
     
-    *signatureBytes = (unsigned char*)calloc(signature.signature.rsassa.sig.size, 1);
+    *signatureBytes = (uint8_t*)calloc(signature.signature.rsassa.sig.size, 1);
     if (!signatureBytes)
     {
         ERROR("Could not allocate signature buffer");

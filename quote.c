@@ -135,7 +135,7 @@ static int CreateQuoteBuffer(TPM2B_ATTEST* quote,
                              TPMT_SIGNATURE* signature, 
                              TPML_PCR_SELECTION* pcrSelection, 
                              TPML_DIGEST* pcrMeasurements,
-                             char** quoteBytes, 
+                             uint8_t** quoteBytes, 
                              int* quoteBytesLength) 
 {
     size_t      off = 0;            // offset in 'quoteBytes' to help with writing quote
@@ -187,7 +187,7 @@ static int CreateQuoteBuffer(TPM2B_ATTEST* quote,
         }
     }
 
-    *quoteBytes = calloc(bufferSize, 1);
+    *quoteBytes = (uint8_t*)calloc(bufferSize, 1);
     if(!*quoteBytes) 
     {
         ERROR("Could not allocate quote buffer");
@@ -255,13 +255,13 @@ static int CreateQuoteBuffer(TPM2B_ATTEST* quote,
 }
 
 int GetTpmQuote(const tpmCtx* ctx, 
-                const char* aikSecretKey, 
+                const uint8_t* aikSecretKey, 
                 size_t aikSecretKeyLength, 
-                const void* pcrSelectionBytes,
+                const uint8_t* pcrSelectionBytes,
                 size_t pcrSelectionBytesLength,
-                const void* qualifyingDataBytes,
+                const uint8_t* qualifyingDataBytes,
                 size_t qualifyingDataBytesLength,
-                char** const quoteBytes, 
+                uint8_t** const quoteBytes, 
                 int* const quoteBytesLength)
 {
     TSS2_RC             rval;
@@ -274,7 +274,7 @@ int GetTpmQuote(const tpmCtx* ctx,
     size_t              pcrsCollectedCount = 0;                                 // number of pcr measurements collected
 
     // KWT: the aik is required on rhel8, but fails when set in the simulator
-    rval = str2Tpm2bAuth(aikSecretKey, aikSecretKeyLength, &aikPassword);
+    rval = InitializeTpmAuth(&aikPassword, aikSecretKey, aikSecretKeyLength);
     if(rval != 0)
     {
         ERROR("There was an error creating the aik TPM2B_AUTH");

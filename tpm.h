@@ -65,117 +65,113 @@ void TpmDelete(tpmCtx* ctx);
 
 TPM_VERSION Version(tpmCtx* ctx);
 
-int CreateCertifiedKey(const tpmCtx* ctx, 
-                       CertifiedKey* keyOut, 
-                       TPM_CERTIFIED_KEY_USAGE usage, 
-                       const char* keySecret, 
-                       size_t keySecretLength, 
-                       const char* aikSecretKey, 
-                       size_t aikSecretKeyLength);
-
-int Unbind(const tpmCtx* ctx, 
-           const char* keySecret, 
-           size_t keySecretLength, 
-           const char* publicKeyBytes, 
-           size_t publicKeyBytesLength,
-           const char* privateKeyBytes, 
-           size_t privateKeyBytesLength,
-           const char* encryptedBytes, 
-           size_t encryptedBytesLength,
-           char** const decryptedData,
-           int* const decryptedDataLength); 
-
-int Sign(const tpmCtx* ctx, 
-         const char* keySecret, 
-         size_t keySecretLength, 
-         const char* publicKeyBytes, 
-         size_t publicKeyBytesLength,
-         const char* privateKeyBytes, 
-         size_t privateKeyBytesLength,
-         const char* hashBytes, 
-         size_t hashBytesLength,
-         char** const signatureBytes,
-         int* const signatureBytesLength);
-
 int TakeOwnership(const tpmCtx* ctx, 
-                  const char* ownerSecretKey, 
+                  const uint8_t* ownerSecretKey, 
                   size_t ownerSecretKeyLength);
 
 int IsOwnedWithAuth(const tpmCtx* ctx, 
-                    const char* ownerSecretKey, 
+                    const uint8_t* ownerSecretKey, 
                     size_t ownerSecretKeyLength);
 
 int CreateAik(const tpmCtx* ctx, 
-              const char* ownerSecretKey, 
+              const uint8_t* ownerSecretKey, 
               size_t ownerSecretKeyLength, 
-              const char* aikSecretKey, 
+              const uint8_t* aikSecretKey, 
               size_t aikSecretKeyLength);
 
 int GetAikBytes(const tpmCtx* ctx, 
-                const char* ownerSecretKey, 
-                size_t ownerSecretKeyLength, 
-                char** const aikBytes, 
+                uint8_t** const aikBytes, 
                 int* const aikBytesLength);
 
 int GetAikName(const tpmCtx* ctx, 
-               const char* ownerSecretKey, 
-               size_t ownerSecretKeyLength, 
-               char** const aikName, 
+               uint8_t** const aikName, 
                int* const aikNameLength);
 
 int GetTpmQuote(const tpmCtx* ctx, 
-                const char* aikSecretKey, 
+                const uint8_t* aikSecretKey, 
                 size_t aikSecretKeyLength, 
-                const void* pcrSelectionBytes,
+                const uint8_t* pcrSelectionBytes,
                 size_t pcrSelectionBytesLength,
-                const void* qualifyingDataString,
+                const uint8_t* qualifyingDataString,
                 size_t qualifyingDataStringLength,
-                char** const quoteBytes, 
+                uint8_t** const quoteBytes, 
                 int* const quouteBytesLength);
 
 int ActivateCredential(const tpmCtx* ctx, 
-                       const char* ownerSecretKey, 
+                       const uint8_t* ownerSecretKey, 
                        size_t ownerSecretKeyLength,
-                       const char* aikSecretKey, 
+                       const uint8_t* aikSecretKey, 
                        size_t aikSecretKeyLength,
-                       const void* credentialBytes, 
+                       const uint8_t* credentialBytes, 
                        size_t credentialBytesLength,
-                       const void* secretBytes, 
+                       const uint8_t* secretBytes, 
                        size_t secretBytesLength,
-                       char** const decrypted,
+                       uint8_t** const decrypted,
                        int* const decryptedLength);
 
 int CreatePrimaryHandle(const tpmCtx* ctx, 
                         uint32_t persistHandle, 
-                        const char* ownerSecretKey, 
+                        const uint8_t* ownerSecretKey, 
                         size_t ownerSecretKeyLength);
 
 int NvIndexExists(const tpmCtx* ctx, uint32_t nvIndex);
 
 int NvDefine(const tpmCtx* ctx, 
-             const char* ownerSecretKey, 
+             const uint8_t* ownerSecretKey, 
              size_t ownerSecretKeyLength, 
              uint32_t nvIndex, 
              uint16_t nvSize);
 
 int NvRead(const tpmCtx* ctx, 
-           const char* ownerSecretKey, 
+           const uint8_t* ownerSecretKey, 
            size_t ownerSecretKeyLength, 
            uint32_t nvIndex, 
-           char** const nvBytes, 
+           uint8_t** const nvBytes, 
            int* const nvBytesLength);
 
 int NvWrite(const tpmCtx* ctx, 
-            const char* ownerSecretKey, 
+            const uint8_t* ownerSecretKey, 
             size_t ownerSecretKeyLength, 
             uint32_t nvIndex, 
-            const void* nvBytes, 
+            const uint8_t* nvBytes, 
             size_t nvBytesLength);
 
 int NvRelease(const tpmCtx* ctx, 
-              const char* ownerSecretKey, 
+              const uint8_t* ownerSecretKey, 
               size_t ownerSecretKeyLenth, 
               uint32_t nvIndex);
+
+int CreateCertifiedKey(const tpmCtx* ctx, 
+                       CertifiedKey* keyOut, 
+                       TPM_CERTIFIED_KEY_USAGE usage, 
+                       const uint8_t* keySecret, 
+                       size_t keySecretLength, 
+                       const uint8_t* aikSecretKey, 
+                       size_t aikSecretKeyLength);
+
+int Unbind(const tpmCtx* ctx, 
+           const uint8_t* bindingSecretKey, 
+           size_t bindingSecretKeyLength, 
+           const uint8_t* publicKeyBytes, 
+           size_t publicKeyBytesLength,
+           const uint8_t* privateKeyBytes, 
+           size_t privateKeyBytesLength,
+           const uint8_t* encryptedBytes, 
+           size_t encryptedBytesLength,
+           uint8_t** const decryptedData,
+           int* const decryptedDataLength); 
+
+int Sign(const tpmCtx* ctx, 
+         const uint8_t* signingSecretKey, 
+         size_t signingSecretKeyLength, 
+         const uint8_t* publicKeyBytes, 
+         size_t publicKeyBytesLength,
+         const uint8_t* privateKeyBytes, 
+         size_t privateKeyBytesLength,
+         const uint8_t* hashBytes, 
+         size_t hashBytesLength,
+         uint8_t** const signatureBytes,
+         int* const signatureBytesLength);
 
 int PublicKeyExists(const tpmCtx* ctx, 
                     uint32_t handle);

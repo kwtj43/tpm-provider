@@ -87,15 +87,15 @@ static int Tss2ActivateCredential(TSS2_SYS_CONTEXT* sys,
 
 
 int ActivateCredential(const tpmCtx* ctx, 
-                       const char* tpmSecretKey, 
-                       size_t tpmSecretKeyLength,
-                       const char* aikSecretKey, 
+                       const uint8_t* ownerSecretKey, 
+                       size_t ownerSecretKeyLength,
+                       const uint8_t* aikSecretKey, 
                        size_t aikSecretKeyLength,
-                       const void* credentialBytes, 
+                       const uint8_t* credentialBytes, 
                        size_t credentialBytesLength,
-                       const void* secretBytes, 
+                       const uint8_t* secretBytes, 
                        size_t secretBytesLength,
-                       char** const decrypted,
+                       uint8_t** const decrypted,
                        int* const decryptedLength)
 {
     TSS2_RC                 rval;
@@ -108,11 +108,21 @@ int ActivateCredential(const tpmCtx* ctx,
     //
     // populate passwords
     //
-    str2Tpm2bAuth(tpmSecretKey, tpmSecretKeyLength, &endorsePassword.hmac);
     endorsePassword.sessionHandle = TPM2_RS_PW;
+    rval = InitializeTpmAuth(&endorsePassword.hmac, ownerSecretKey, ownerSecretKeyLength);
+    if(rval != 0)
+    {
+        ERROR("There was an error populating the owner secret");
+        return -1;
+    }
 
-    str2Tpm2bAuth(aikSecretKey, aikSecretKeyLength, &aikPassword.hmac);
     aikPassword.sessionHandle = TPM2_RS_PW;
+    InitializeTpmAuth(&aikPassword.hmac, aikSecretKey, aikSecretKeyLength);
+    if(rval != 0)
+    {
+        ERROR("There was an error populating the aik secret");
+        return -1;
+    }
 
     //
     // copy credentialBytes into the TPM2B_ID_OBJECT
@@ -154,7 +164,7 @@ int ActivateCredential(const tpmCtx* ctx,
     }
 
     // this will be freed by cgo in tpmlinx20.go
-    *decrypted = (char*)calloc(certInfoData.size, 1);
+    *decrypted = (uint8_t*)calloc(certInfoData.size, 1);
     if (!*decrypted)
     {
         ERROR("Could not allocated decrypted buffer");

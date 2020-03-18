@@ -7,7 +7,7 @@
 
 int CreatePrimaryHandle(const tpmCtx* ctx, 
                         uint32_t persistHandle, 
-                        const char* ownerSecretKey, 
+                        const uint8_t* ownerSecretKey, 
                         size_t ownerSecretKeyLength)
 {
     TSS2_RC                 rval;

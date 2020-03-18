@@ -93,7 +93,6 @@ struct tpmCtx
 };
 
 // util.c
-int str2Tpm2bAuth(const char* secretKey, size_t keyLength, TPM2B_AUTH* tpm2bAuth);
 int InitializeTpmAuth(TPM2B_AUTH* auth, const char* secretKey, size_t secretKeyLength);
 int ClearKeyHandle(TSS2_SYS_CONTEXT *sys, TPM2B_AUTH *ownerAuth, TPM_HANDLE keyHandle);
 

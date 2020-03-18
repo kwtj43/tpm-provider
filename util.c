@@ -6,60 +6,7 @@
 
 #include "tpm20linux.h"
 
-//#include <stdio.h>
 #include <ctype.h>
-
-// Utility function that takes an ascii string and converts it into a TPM2B_AUTH similar
-// to https://raw.githubusercontent.com/tpm2-software/tpm2-tools/3.1.0/lib/tpm2_util.c
-// (tpm2_util_hex_to_byte_structure).
-int str2Tpm2bAuth(const char* tpmSecretKey, size_t keyLength, TPM2B_AUTH* tpm2bAuth) 
-{
-    int i = 0;
-
-    if(tpmSecretKey == NULL)
-    {
-        ERROR("The TPM secret key must be provided.")
-        return -1;
-    }
-
-    if(keyLength == 0 || keyLength > ARRAY_SIZE(tpm2bAuth->buffer))
-    {
-        ERROR("Invalid secret key length.")
-        return -2;
-    }
-
-//    DEBUG("SK: '%s'", tpmSecretKey);
-
-    if (tpm2bAuth == NULL)
-    {
-        ERROR("TPM2B_AUTH was not provided");
-        return -3;
-    }
-
-    if (keyLength % 2)
-    {
-        ERROR("The tpm key must be even in length");
-        return -4;
-    }
-
-    if (keyLength/2 > ARRAY_SIZE(tpm2bAuth->buffer))
-    {
-        ERROR("Invalid key length");
-        return -5;
-    }
-
-    tpm2bAuth->size = keyLength/2;
-
-    for (i = 0; i < tpm2bAuth->size; i++) 
-    {
-        char tmpStr[4] = { 0 };
-        tmpStr[0] = tpmSecretKey[i * 2];
-        tmpStr[1] = tpmSecretKey[i * 2 + 1];
-        tpm2bAuth->buffer[i] = strtol(tmpStr, NULL, 16);
-    }
-
-    return 0;
-}
 
 int InitializeTpmAuth(TPM2B_AUTH* auth, const char* secretKey, size_t secretKeyLength)
 {

@@ -34,7 +34,7 @@ static int change_auth(TSS2_SYS_CONTEXT* sys,
     rval = Tss2_Sys_HierarchyChangeAuth(sys, auth_handle, &sessionsData, newSecretKey, 0);
     if (rval != TPM2_RC_SUCCESS) 
     {
-        ERROR("Could not change hierarchy for %s: 0x%x", desc, rval);
+        DEBUG("Could not change hierarchy for %s: 0x%x", desc, rval);
     }
 
     return rval;
@@ -73,8 +73,8 @@ static int take_ownership(TSS2_SYS_CONTEXT* sys,
 // and tpm2_evictcontrol
 //-------------------------------------------------------------------------------------------------
 int TakeOwnership(const tpmCtx* ctx, 
-                  const char* tpmSecretKey, 
-                  size_t keyLength) 
+                  const uint8_t* ownerSecretKey, 
+                  size_t ownerSecretKeyLength) 
 {
     TSS2_RC rval = 0;
     // TPM2_HANDLE handle2048rsa = 0;
@@ -86,7 +86,7 @@ int TakeOwnership(const tpmCtx* ctx,
                                    // enhancement.
 
 
-    rval = str2Tpm2bAuth(tpmSecretKey, keyLength, &newSecretKey);
+    rval = InitializeTpmAuth(&newSecretKey, ownerSecretKey, ownerSecretKeyLength);
     if(rval != 0)
     {
         ERROR("There was an error creating the new TPM2B_AUTH");
@@ -114,21 +114,21 @@ int TakeOwnership(const tpmCtx* ctx,
 // values are error codes.
 // 
 int IsOwnedWithAuth(const tpmCtx* ctx, 
-                    const char* ownerSecretKey, 
+                    const uint8_t* ownerSecretKey, 
                     size_t keyLength)
 {
     int rval;
     TPM2B_AUTH newSecretKey = {0};
     TPM2B_AUTH oldSecretKey = {0};
 
-    rval = str2Tpm2bAuth(ownerSecretKey, keyLength, &newSecretKey);
+    rval = InitializeTpmAuth(&newSecretKey, ownerSecretKey, keyLength);
     if(rval != 0)
     {
         ERROR("There was an error creating the new TPM2B_AUTH");
         return -2;
     }
 
-    rval = str2Tpm2bAuth(ownerSecretKey, keyLength, &oldSecretKey);
+    rval = InitializeTpmAuth(&oldSecretKey, ownerSecretKey, keyLength);
     if(rval != 0)
     {
         ERROR("There was an error creating the old TPM2B_AUTH");
