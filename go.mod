@@ -1,4 +1,4 @@
-module intel/isecl/lib/tpmprovider
+module intel/isecl/lib/tpmprovider/v2
 
 require (
 	github.com/pkg/errors v0.9.1

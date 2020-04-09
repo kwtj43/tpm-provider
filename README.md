@@ -12,7 +12,7 @@ The `tpm-provider` is a golang libary that interfaces with a TPM device to suppo
 
 ## Software requirements
 - git
-- go version >= `go1.12.12` & <= `go1.13.8`
+- go version >= `go1.12.1` & <= `go1.14.1`
 - docker
 
 # Links
