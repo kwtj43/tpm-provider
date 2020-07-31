@@ -158,7 +158,7 @@ func (t *tpm20Linux) CreateAik(ownerSecretKey string, aikSecretKey string) error
 					  (*C.uint8_t)(unsafe.Pointer(&aikSecretKeyBytes[0])), 
 					  C.size_t(len(aikSecretKeyBytes)))
 	if rc != 0 {
-		return fmt.Errorf("CreateAik return 0x%x", rc)
+		return fmt.Errorf("An error occurred in CreateAik: %w", NewTpmProviderError(int(rc)))
 	}
 
 	return nil

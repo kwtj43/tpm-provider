@@ -45,7 +45,7 @@ static int GetMaxNvBufferSize(TSS2_SYS_CONTEXT* sys, uint32_t* size)
         *size = NV_DEFAULT_BUFFER_SIZE;
     }
 
-    //DEBUG("Max nv buffer size is 0x%x", *size);
+    DEBUG("Max nv buffer size is 0x%x", *size);
 
     return rval;
 }
@@ -151,7 +151,6 @@ int NvRead(const tpmCtx* ctx,
     TPM2B_NV_PUBLIC         nvPublic = TPM2B_EMPTY_INIT;
     TPM2B_MAX_NV_BUFFER     nvData = TPM2B_TYPE_INIT(TPM2B_MAX_NV_BUFFER, buffer);
     uint16_t                nvBufferSize = 0;               // total size of nv buffer
-    uint32_t                maxNvBufferSize = 0;            // max nv size that can be read (tpm caps)
     uint16_t                off = 0;                        // offset to read from in nv buffer
     uint16_t                len = 0;                        // size of nv buffer to read
 
@@ -162,13 +161,6 @@ int NvRead(const tpmCtx* ctx,
     rval = InitializeTpmAuth(&sessionData.auths[0].hmac, ownerSecretKey, ownerSecretKeyLength);
     if (rval != 0) 
     {
-        return rval;
-    }
-
-    rval = GetMaxNvBufferSize(ctx->sys, &maxNvBufferSize);
-    if (rval != TSS2_RC_SUCCESS) 
-    {
-        ERROR("GetMaxNvBufferSize returned error: 0x%x", rval);
         return rval;
     }
 
@@ -194,9 +186,11 @@ int NvRead(const tpmCtx* ctx,
         return -1;
     }
 
+    // loop for the length of nv buffer, reading "default size" chunks to avoid
+    // errors encountered when reading more than 1024 bytes.
     while(off < nvBufferSize)
     {
-        len = nvBufferSize >  maxNvBufferSize ? maxNvBufferSize : nvBufferSize;
+        len = nvBufferSize >  NV_DEFAULT_BUFFER_SIZE ? NV_DEFAULT_BUFFER_SIZE : nvBufferSize;
         if(off + len > nvBufferSize)
         {
             len = nvBufferSize - off;
@@ -222,6 +216,7 @@ int NvRead(const tpmCtx* ctx,
     }
 
     *nvBytesLength = off;
+    DEBUG("Successfully read %x bytes from index %x", off, nvIndex)
 
     return TSS2_RC_SUCCESS;
 }

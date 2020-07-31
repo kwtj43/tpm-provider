@@ -113,7 +113,7 @@ static int getpubak(TSS2_SYS_CONTEXT *sys,
     sessions_data.auths[0].sessionAttributes |= TPMA_SESSION_CONTINUESESSION;
     sessions_data.auths[0].hmac.size = 0;
 
-    rval = Tss2_Sys_Create(sys, TPM_HANDLE_EK_CERT, &sessions_data,
+    rval = Tss2_Sys_Create(sys, TPM_HANDLE_EK, &sessions_data,
             &inSensitive, &inPublic, &outsideInfo, &creation_pcr, &out_private,
             &out_public, &creation_data, &creation_hash, &creation_ticket,
             &sessions_data_out);
@@ -156,7 +156,7 @@ static int getpubak(TSS2_SYS_CONTEXT *sys,
     sessions_data.auths[0].hmac.size = 0;
 
     TPM2_HANDLE loaded_sha1_key_handle;
-    rval = Tss2_Sys_Load(sys, TPM_HANDLE_EK_CERT, &sessions_data, &out_private, &out_public, &loaded_sha1_key_handle, &name, &sessions_data_out);
+    rval = Tss2_Sys_Load(sys, TPM_HANDLE_EK, &sessions_data, &out_private, &out_public, &loaded_sha1_key_handle, &name, &sessions_data_out);
     if (rval != TPM2_RC_SUCCESS) 
     {
         ERROR("TPM2_Load Error. TPM Error:0x%x", rval);
@@ -195,11 +195,12 @@ static int getpubak(TSS2_SYS_CONTEXT *sys,
 }
 
 //-------------------------------------------------------------------------------------------------
-// G E T   P U B   E K
+// CreateEk
 // from https://github.com/tpm2-software/tpm2-tools/blob/3.1.0/tools/tpm2_getpubek.c
 //-------------------------------------------------------------------------------------------------
-static int getpubek(TSS2_SYS_CONTEXT *sys, 
-                    TPM2B_AUTH* secretKey) 
+static int CreateEk(const tpmCtx* ctx, 
+                     TPM2B_AUTH* ownerAuth,
+                     TPMT_PUBLIC* ekTemplate) 
 {
     TSS2_RC                 rval;
     TPM2_HANDLE             handle2048ek;
@@ -221,56 +222,29 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
         .sessionAttributes = 0,
     }}};
 
-    if (secretKey == NULL) 
+    if (ownerAuth == NULL) 
     {
         ERROR("The owner secret key cannot be null");
         return -1;
     }
 
-    memcpy(&sessionsData.auths[0].hmac, secretKey, sizeof(TPM2B_AUTH));
+    memcpy(&sessionsData.auths[0].hmac, ownerAuth, sizeof(TPM2B_AUTH));
+
+    if (ekTemplate == NULL) {
+        ERROR("The ek template cannot be null");
+        return -1;
+    }
+
+    memcpy(&inPublic.publicArea, ekTemplate, sizeof(TPMT_PUBLIC));
+
 
     inSensitive.sensitive.data.size = 0;
     inSensitive.size = inSensitive.sensitive.userAuth.size + 2;
 
-    {
-        // from set_key_algorithm
-
-        static BYTE auth_policy[] = {
-                0x83, 0x71, 0x97, 0x67, 0x44, 0x84, 0xB3, 0xF8, 0x1A, 0x90, 0xCC,
-                0x8D, 0x46, 0xA5, 0xD7, 0x24, 0xFD, 0x52, 0xD7, 0x6E, 0x06, 0x52,
-                0x0B, 0x64, 0xF2, 0xA1, 0xDA, 0x1B, 0x33, 0x14, 0x69, 0xAA
-        };
-
-        inPublic.publicArea.nameAlg = TPM2_ALG_SHA256;
-
-        // First clear attributes bit field.
-        inPublic.publicArea.objectAttributes = 0;
-        inPublic.publicArea.objectAttributes |= TPMA_OBJECT_RESTRICTED;
-        inPublic.publicArea.objectAttributes &= ~TPMA_OBJECT_USERWITHAUTH;
-        inPublic.publicArea.objectAttributes |= TPMA_OBJECT_ADMINWITHPOLICY;
-        inPublic.publicArea.objectAttributes &= ~TPMA_OBJECT_SIGN_ENCRYPT;
-        inPublic.publicArea.objectAttributes |= TPMA_OBJECT_DECRYPT;
-        inPublic.publicArea.objectAttributes |= TPMA_OBJECT_FIXEDTPM;
-        inPublic.publicArea.objectAttributes |= TPMA_OBJECT_FIXEDPARENT;
-        inPublic.publicArea.objectAttributes |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-        inPublic.publicArea.authPolicy.size = ARRAY_SIZE(auth_policy);
-        memcpy(inPublic.publicArea.authPolicy.buffer, auth_policy, ARRAY_SIZE(auth_policy));
-
-        inPublic.publicArea.type = TPM2_ALG_RSA; // 0x1 from command line
-
-        inPublic.publicArea.parameters.rsaDetail.symmetric.algorithm = TPM2_ALG_AES;
-        inPublic.publicArea.parameters.rsaDetail.symmetric.keyBits.aes = 128;
-        inPublic.publicArea.parameters.rsaDetail.symmetric.mode.aes = TPM2_ALG_CFB;
-        inPublic.publicArea.parameters.rsaDetail.scheme.scheme = TPM2_ALG_NULL;
-        inPublic.publicArea.parameters.rsaDetail.keyBits = 2048;
-        inPublic.publicArea.parameters.rsaDetail.exponent = 0;
-        inPublic.publicArea.unique.rsa.size = 256;
-    }
-
     creationPCR.count = 0;
 
     /* Create EK and get a handle to the key */
-    rval = Tss2_Sys_CreatePrimary(sys, TPM2_RH_ENDORSEMENT, 
+    rval = Tss2_Sys_CreatePrimary(ctx->sys, TPM2_RH_ENDORSEMENT, 
             &sessionsData, &inSensitive, &inPublic, &outsideInfo, &creationPCR,
             &handle2048ek, &outPublic, &creationData, &creationHash,
             &creationTicket, &name, &sessionsDataOut);
@@ -283,10 +257,18 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
 
     DEBUG("EK create success. Got handle: 0x%8.8x", handle2048ek);
 
-    memcpy(&sessionsData.auths[0].hmac, secretKey, sizeof(TPM2B_AUTH));
+    // validate the new EK (outPublic) against EK Certificate.  If this fails, return an 
+    // error here to avoid a downstream error (i.e. when ActivateCredential would fail).
+    rval = ValidateEkPublicRSA(ctx, ownerAuth, NV_IDX_RSA_ENDORSEMENT_CERTIFICATE, &outPublic.publicArea);
+    if (rval != TPM2_RC_SUCCESS)
+    {
+        return rval;
+    }
 
-    rval = Tss2_Sys_EvictControl(sys, TPM2_RH_OWNER, handle2048ek, &sessionsData, TPM_HANDLE_EK_CERT, &sessionsDataOut);
-    if (rval != TPM2_RC_SUCCESS) 
+    memcpy(&sessionsData.auths[0].hmac, ownerAuth, sizeof(TPM2B_AUTH));
+
+    rval = Tss2_Sys_EvictControl(ctx->sys, TPM2_RH_OWNER, handle2048ek, &sessionsData, TPM_HANDLE_EK, &sessionsDataOut);
+    if (rval != TPM2_RC_SUCCESS)
     {
         ERROR("EvictControl failed. Could not make EK persistent. TPM Error:0x%x", rval);
         return rval;
@@ -294,7 +276,7 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
 
     DEBUG("EvictControl EK persistent success.");
 
-    rval = Tss2_Sys_FlushContext(sys, handle2048ek);
+    rval = Tss2_Sys_FlushContext(ctx->sys, handle2048ek);
     if (rval != TPM2_RC_SUCCESS)
     {
         ERROR("Flush transient EK failed. TPM Error:0x%x", rval);
@@ -302,6 +284,9 @@ static int getpubek(TSS2_SYS_CONTEXT *sys,
     }
 
     DEBUG("Flush transient EK success.");
+
+    LOG("Successfully persisted EK at handle 0x%x", TPM_HANDLE_EK);
+
     return rval;
 }
 
@@ -326,6 +311,7 @@ int CreateAik(const tpmCtx* ctx,
     TPM2_HANDLE handle2048rsa = 0;
     TPM2B_AUTH  ownerAuth = {0};
     TPM2B_AUTH  aikAuth = {0};
+    TPMT_PUBLIC ekTemplate = {0};
 
     rval = InitializeTpmAuth(&ownerAuth, ownerSecretKey, ownerSecretKeyLength);
     if(rval != 0)
@@ -344,19 +330,28 @@ int CreateAik(const tpmCtx* ctx,
     //
     // tpm2_getpubek -e hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -o hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -H 0x81010000 -g 0x1 -f /tmp/endorsementKey
     //
-    if(PublicKeyExists(ctx, TPM_HANDLE_EK_CERT) != 0)
+    if(PublicKeyExists(ctx, TPM_HANDLE_EK) == 0)
     {
-        rval = getpubek(ctx->sys, &ownerAuth);
-        if(rval != TPM2_RC_SUCCESS)
+        DEBUG("The EK handle at %x already exists. Clearing the existing handle", TPM_HANDLE_EK);
+
+        rval = ClearKeyHandle(ctx->sys, &ownerAuth, TPM_HANDLE_EK);
+        if (rval != TPM2_RC_SUCCESS)
         {
             return rval;
         }
     }
-    else
+
+    rval = GetEkTemplate(ctx, &ownerAuth, &ekTemplate);
+    if (rval != TPM2_RC_SUCCESS)
     {
-        DEBUG("The EK handle at %x already exists and won't be created", TPM_HANDLE_EK_CERT);
+        return rval;
     }
-    
+
+    rval = CreateEk(ctx, &ownerAuth, &ekTemplate);
+    if(rval != TPM2_RC_SUCCESS)
+    {
+        return rval;
+    }    
 
     //
     // tpm2_getpubak -e hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -o hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -P hex:beeffeedbeeffeedbeeffeedbeeffeedbeeffeed -E 0x81010000 -k 0x81018000 -f /tmp/aik -n /tmp/aikName
@@ -364,13 +359,13 @@ int CreateAik(const tpmCtx* ctx,
     if (PublicKeyExists(ctx, TPM_HANDLE_AIK) == 0)
     {
         DEBUG("The AIK handle at %x already exists. Clearing the existing handle", TPM_HANDLE_AIK);
+
         // Clear the existing provisioned AIK
         rval = ClearKeyHandle(ctx->sys, &ownerAuth, TPM_HANDLE_AIK);
         if (rval != TPM2_RC_SUCCESS)
         {
             return rval;
         }
-        DEBUG("ClearKeyHandle: rval %x | TPM_HANDLE_AIK %x", rval, TPM_HANDLE_AIK);
     }
 
     // Provision the newly minted AIK
@@ -379,7 +374,8 @@ int CreateAik(const tpmCtx* ctx,
     {
         return rval;
     }
-    DEBUG("getpubak: rval %x | TPM_HANDLE_AIK %x", rval, TPM_HANDLE_AIK);
+
+    LOG("Successfully persisted AIK at handle 0x%x", TPM_HANDLE_AIK);
     
     return TSS2_RC_SUCCESS;
 }

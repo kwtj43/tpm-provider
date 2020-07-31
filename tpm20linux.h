@@ -93,8 +93,32 @@ struct tpmCtx
     TSS2_SYS_CONTEXT* sys;
 };
 
-// util.c
+//-------------------------------------------------------------------------------------------------
+// Internal utility functions
+//-------------------------------------------------------------------------------------------------
+
+//
+//  Converts a string into TPM2B_AUTH and performs simple validation.
+//
 int InitializeTpmAuth(TPM2B_AUTH* auth, const char* secretKey, size_t secretKeyLength);
+
+//
+// Removes the persistent handle at 'keyHandle' from the TPM.
+//
 int ClearKeyHandle(TSS2_SYS_CONTEXT *sys, TPM2B_AUTH *ownerAuth, TPM_HANDLE keyHandle);
+
+//
+// This function  implements the procedure documented in sections 2.2.1.6 and  2.2.1.9 in 'TCG EK 
+// Credential Profile' version 2.1.  However, it will return an error if the TPM does not use RSA
+// EKs/certificate since HVS does not currently support ECC or other ('high range') algorithms.
+//
+int GetEkTemplate(const tpmCtx* ctx, TPM2B_AUTH *ownerAuth, TPMT_PUBLIC* outPublic);
+
+//
+// Compares the public key of an EK Certificate (at 'ekCertIndex') and the output of
+// Tss2_Sys_CreatePrimary to determine of the EK is valid (see 'TCG EK Credential 
+// Profile' section 2.2.1.9, #5.b.
+//
+int ValidateEkPublicRSA(const tpmCtx* ctx, TPM2B_AUTH *ownerAuth, uint32_t ekCertIndex, TPMT_PUBLIC* public);
 
 #endif

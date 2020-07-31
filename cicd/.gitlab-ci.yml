@@ -5,6 +5,8 @@ before_script:
   - export http_proxy="${HTTP_PROXY}"
   - export https_proxy="${HTTPS_PROXY}"
   - export no_proxy="${NO_PROXY}"
+  - env
+  - git config --list
 
 # the gta-unit-test is a container that remains alive across builds/tests.  clean up
 # the gitlab url otherwise they accumulate and expire
@@ -13,7 +15,7 @@ after_script:
 
 stages:
   - build
-  - test
+#  - test
 
 build:gta:
   stage: build
@@ -26,16 +28,17 @@ build:gta:
     paths:
       - "out/tpmprovider.test"
 
-test:
-  stage: test
-  image: gta-devel
-  tags:
-    - gta-unit-test
-  script:
-    - export CGO_CFLAGS_ALLOW="-f.*"
-    - go test ./... -tags=unit_test -coverpkg=./... -coverprofile out/cover.out
-    - go tool cover -func out/cover.out
-    - go tool cover -html=out/cover.out -o out/cover.html
-  artifacts:
-    paths:
-      - "out/cover.html"
+# TODO ISECL-11207: Re-evaluate the use and implementation of the Microsoft TPM Simulator
+# test:
+#   stage: test
+#   image: gta-devel
+#   tags:
+#     - gta-unit-test
+#   script:
+#     - export CGO_CFLAGS_ALLOW="-f.*"
+#     - go test ./... -tags=unit_test -coverpkg=./... -coverprofile out/cover.out
+#     - go tool cover -func out/cover.out
+#     - go tool cover -html=out/cover.out -o out/cover.html
+#   artifacts:
+#     paths:
+#       - "out/cover.html"
