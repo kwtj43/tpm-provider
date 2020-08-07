@@ -8,37 +8,31 @@ before_script:
   - env
   - git config --list
 
-# the gta-unit-test is a container that remains alive across builds/tests.  clean up
-# the gitlab url otherwise they accumulate and expire
-after_script:
-  - git config --global --unset url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${GITLAB_SERVER}".insteadOf
-
 stages:
   - build
-#  - test
+  - test
 
 build:gta:
   stage: build
-  image: gta-devel
+  image: tpm-devel
   tags:
-    - gta
+    - tpm-devel
   script:
     - make
   artifacts:
     paths:
       - "out/tpmprovider.test"
 
-# TODO ISECL-11207: Re-evaluate the use and implementation of the Microsoft TPM Simulator
-# test:
-#   stage: test
-#   image: gta-devel
-#   tags:
-#     - gta-unit-test
-#   script:
-#     - export CGO_CFLAGS_ALLOW="-f.*"
-#     - go test ./... -tags=unit_test -coverpkg=./... -coverprofile out/cover.out
-#     - go tool cover -func out/cover.out
-#     - go tool cover -html=out/cover.out -o out/cover.html
-#   artifacts:
-#     paths:
-#       - "out/cover.html"
+test:
+  stage: test
+  image: tpm-devel
+  tags:
+    - tpm-devel
+  script:
+    - export CGO_CFLAGS_ALLOW="-f.*"
+    - go test ./... -coverpkg=./... -coverprofile out/cover.out
+    - go tool cover -func out/cover.out
+    - go tool cover -html=out/cover.out -o out/cover.html
+  artifacts:
+    paths:
+      - "out/cover.html"

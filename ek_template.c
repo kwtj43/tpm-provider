@@ -64,31 +64,31 @@ static NvIndexStatus GetNvIndexStatus(TPMS_CAPABILITY_DATA* capability_data)
         switch(capability_data->data.handles.handle[i])
         {
         case NV_IDX_RSA_ENDORSEMENT_CERTIFICATE:
-            LOG("RSA EK Certificate is present at nv index %x", NV_IDX_RSA_ENDORSEMENT_CERTIFICATE)
+            DEBUG("RSA EK Certificate is present at nv index %x", NV_IDX_RSA_ENDORSEMENT_CERTIFICATE)
             results.RsaEkCertificate = NV_INDEX_PRESENT;
             break;
         case NV_INDEX_RSA_NONCE:
-            LOG("RSA nonce is present at nv index %x", NV_INDEX_RSA_NONCE)
+            DEBUG("RSA nonce is present at nv index %x", NV_INDEX_RSA_NONCE)
             results.RsaEkNonce = NV_INDEX_PRESENT;
             break;
         case NV_INDEX_RSA_TEMPLATE:
-            LOG("RSA template is present at nv index %x", NV_INDEX_RSA_TEMPLATE)
+            DEBUG("RSA template is present at nv index %x", NV_INDEX_RSA_TEMPLATE)
             results.RsaEkTemplate = NV_INDEX_PRESENT;
             break;
         case NV_IDX_ECC_ENDORSEMENT_CERTIFICATE:
-            LOG("ECC EK Certificate is present at nv index %x", NV_IDX_ECC_ENDORSEMENT_CERTIFICATE)
+            DEBUG("ECC EK Certificate is present at nv index %x", NV_IDX_ECC_ENDORSEMENT_CERTIFICATE)
             results.EccEkCertificate = NV_INDEX_PRESENT;
             break;
         case NV_INDEX_ECC_NONCE:
-            LOG("ECC nonce is present at nv index %x", NV_INDEX_ECC_NONCE)
+            DEBUG("ECC nonce is present at nv index %x", NV_INDEX_ECC_NONCE)
             results.EccEkNonce = NV_INDEX_PRESENT;
             break;
         case NV_INDEX_ECC_TEMPLATE:
-            LOG("ECC template is present at nv index %x", NV_INDEX_ECC_TEMPLATE)
+            DEBUG("ECC template is present at nv index %x", NV_INDEX_ECC_TEMPLATE)
             results.EccEkTemplate = NV_INDEX_PRESENT;
             break;
         default:
-            LOG("Unhandled nv index %x", capability_data->data.handles.handle[i])
+            DEBUG("Unhandled nv index %x", capability_data->data.handles.handle[i])
             break;
         }
     }
@@ -101,6 +101,8 @@ static int UnmarshalEkTemplate(const tpmCtx* ctx, TPM2B_AUTH* ownerAuth, uint32_
     TSS2_RC  rval = -1;
     uint8_t* nvBytes;
     int      nvLength;
+
+    DEBUG("Collecting EK template from nv index 0x%x", NV_INDEX_RSA_TEMPLATE);
 
     rval = NvRead(ctx, (uint8_t*)ownerAuth->buffer, ownerAuth->size, nvIndex, &nvBytes, &nvLength);
     if (rval != TPM2_RC_SUCCESS) 
@@ -156,8 +158,12 @@ error:
     return rval;
 }
 
+// see section 'B.3.3 Template L-1: RSA 2048 (Storage)' in the 'TCG EK Credential Profile' specs
 static int SetDefaultRsaTemplate(TPMT_PUBLIC* outPublic)
 {
+
+    DEBUG("Using default TCG RSA EK template");
+
     memset(outPublic, 0, sizeof(TPMT_PUBLIC));
 
     outPublic->type = TPM2_ALG_RSA;
@@ -219,18 +225,13 @@ int GetEkTemplate(const tpmCtx* ctx, TPM2B_AUTH *ownerAuth, TPMT_PUBLIC* outPubl
 
     nvIndexStatus = GetNvIndexStatus(&capability_data);
     
-    if (nvIndexStatus.RsaEkCertificate == NV_INDEX_ABSENT) 
+    if (nvIndexStatus.RsaEkTemplate == NV_INDEX_PRESENT)
     {
-        rval = TPM_PROVIDER_ERROR_NO_EK_CERT;
-    }
-    else if (nvIndexStatus.RsaEkTemplate == NV_INDEX_PRESENT)
-    {
-        LOG("Applying RSA EK template at nv index 0x%x", NV_INDEX_RSA_TEMPLATE);
+        LOG("Applying RSA EK template from nv index 0x%x", NV_INDEX_RSA_TEMPLATE);
         rval = UnmarshalEkTemplate(ctx, ownerAuth, NV_INDEX_RSA_TEMPLATE, outPublic);
     }
     else 
     {
-        LOG("Using default TCG RSA EK template");
         rval = SetDefaultRsaTemplate(outPublic);
     }
 
@@ -241,7 +242,7 @@ int GetEkTemplate(const tpmCtx* ctx, TPM2B_AUTH *ownerAuth, TPMT_PUBLIC* outPubl
     // Populate nonce if present and also check for 'unspecified' scenario...
     if (nvIndexStatus.RsaEkNonce == NV_INDEX_PRESENT && nvIndexStatus.RsaEkTemplate == NV_INDEX_PRESENT)
     {
-        LOG("Applying RSA EK nonce at nv index 0x%x", NV_INDEX_RSA_NONCE);
+        LOG("Applying RSA EK nonce from nv index 0x%x", NV_INDEX_RSA_NONCE);
         rval = SetEkNonce(ctx, ownerAuth, NV_INDEX_RSA_NONCE, outPublic);
     }
     else if (nvIndexStatus.RsaEkNonce == NV_INDEX_PRESENT && nvIndexStatus.RsaEkTemplate == NV_INDEX_ABSENT)

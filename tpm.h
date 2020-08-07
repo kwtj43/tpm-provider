@@ -18,7 +18,8 @@ typedef enum TPM_VERSION
 typedef enum TCTI_TYPE
 {
     TCTI_ABRMD,
-    TCTI_DEVICE
+    TCTI_DEVICE,
+    TCTI_MSSIM,
 } TCTI_TYPE;
 
 typedef enum NV_IDX 
@@ -72,7 +73,7 @@ typedef struct CertifiedKey {
 
 typedef struct tpmCtx tpmCtx;
 
-tpmCtx* TpmCreate(uint tctiType);
+tpmCtx* TpmCreate(unsigned int tctiType);
 
 void TpmDelete(tpmCtx* ctx);
 
@@ -126,6 +127,11 @@ int CreatePrimaryHandle(const tpmCtx* ctx,
                         uint32_t persistHandle, 
                         const uint8_t* ownerSecretKey, 
                         size_t ownerSecretKeyLength);
+
+int CreateEk(const tpmCtx* ctx, 
+             const uint8_t* ownerSecretKey, 
+             size_t ownerSecretKeyLength, 
+             uint32_t ekHandle);
 
 int NvIndexExists(const tpmCtx* ctx, uint32_t nvIndex);
 
@@ -188,4 +194,16 @@ int Sign(const tpmCtx* ctx,
 
 int PublicKeyExists(const tpmCtx* ctx, 
                     uint32_t handle);
+
+int ReadPublic(const tpmCtx* ctx, 
+               uint32_t handle,
+               uint8_t** const publicBytes, 
+               int* const publicBytesLength);
+
+int IsValidEk(const tpmCtx* ctx, 
+              const uint8_t* ownerSecretKey, 
+              size_t ownerSecretKeyLenth, 
+              uint32_t handle, 
+              uint32_t ekCertificateIndex);
+
 #endif

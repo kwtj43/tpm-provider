@@ -16,6 +16,7 @@
 #include <tss2/tss2_sys.h>
 #include <tss2/tss2-tcti-tabrmd.h>
 #include <tss2/tss2_tcti_device.h>
+#include <tss2/tss2_tcti_mssim.h>
 
 #include "tpm.h"
 
@@ -113,12 +114,5 @@ int ClearKeyHandle(TSS2_SYS_CONTEXT *sys, TPM2B_AUTH *ownerAuth, TPM_HANDLE keyH
 // EKs/certificate since HVS does not currently support ECC or other ('high range') algorithms.
 //
 int GetEkTemplate(const tpmCtx* ctx, TPM2B_AUTH *ownerAuth, TPMT_PUBLIC* outPublic);
-
-//
-// Compares the public key of an EK Certificate (at 'ekCertIndex') and the output of
-// Tss2_Sys_CreatePrimary to determine of the EK is valid (see 'TCG EK Credential 
-// Profile' section 2.2.1.9, #5.b.
-//
-int ValidateEkPublicRSA(const tpmCtx* ctx, TPM2B_AUTH *ownerAuth, uint32_t ekCertIndex, TPMT_PUBLIC* public);
 
 #endif

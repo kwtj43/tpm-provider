@@ -93,3 +93,39 @@ int ClearKeyHandle(TSS2_SYS_CONTEXT *sys, TPM2B_AUTH *ownerAuth, TPM_HANDLE keyH
 
     return rval;
 }
+
+int ReadPublic(const tpmCtx* ctx, 
+                TPM_HANDLE handle,
+                uint8_t** const modulusBytes, 
+                int* const modulusBytesLength)
+{
+    TSS2_RC                 rval;
+    TPM2B_PUBLIC            public = TPM2B_EMPTY_INIT;
+    TPM2B_NAME              name = TPM2B_TYPE_INIT(TPM2B_NAME, name);
+    TSS2L_SYS_AUTH_RESPONSE sessionsData;
+    TPM2B_NAME              qualifiedName = TPM2B_TYPE_INIT(TPM2B_NAME, name);
+
+    rval = Tss2_Sys_ReadPublic(ctx->sys, handle, NULL, &public, &name, &qualifiedName, &sessionsData);
+    if(rval != TSS2_RC_SUCCESS)
+    {
+        return rval;
+    }
+
+    if(public.publicArea.unique.rsa.size == 0 || public.publicArea.unique.rsa.size > ARRAY_SIZE(public.publicArea.unique.rsa.buffer))
+    {
+        ERROR("Incorrect buffer length %x", public.publicArea.unique.rsa.size);
+        return -1;   
+    }
+
+    *modulusBytes = calloc(public.publicArea.unique.rsa.size, 1);
+    if(!*modulusBytes)
+    {
+        ERROR("Could not allocate modulus buffer");
+        return -1;
+    }
+
+    memcpy(*modulusBytes, public.publicArea.unique.rsa.buffer, public.publicArea.unique.rsa.size);
+    *modulusBytesLength = public.publicArea.unique.rsa.size;
+   
+    return TSS2_RC_SUCCESS;
+}

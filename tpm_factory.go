@@ -27,7 +27,7 @@ type TpmFactory interface {
 //
 func NewTpmFactory() (TpmFactory, error) {
 	if runtime.GOOS == "linux" {
-		return linuxTpmFactory{tctiType : TCTI_ABRMD}, nil
+		return linuxTpmFactory{tctiType: TCTI_ABRMD}, nil
 	} else {
 		return nil, errors.New("Unsuportted tpm factory platform " + runtime.GOOS)
 	}
@@ -35,7 +35,15 @@ func NewTpmFactory() (TpmFactory, error) {
 
 func NewTpmDeviceFactory() (TpmFactory, error) {
 	if runtime.GOOS == "linux" {
-		return linuxTpmFactory{tctiType : TCTI_DEVICE}, nil
+		return linuxTpmFactory{tctiType: TCTI_DEVICE}, nil
+	} else {
+		return nil, errors.New("Unsuportted tpm factory platform " + runtime.GOOS)
+	}
+}
+
+func NewTpmSimulatorFactory() (TpmFactory, error) {
+	if runtime.GOOS == "linux" {
+		return linuxTpmFactory{tctiType: TCTI_MSSIM}, nil
 	} else {
 		return nil, errors.New("Unsuportted tpm factory platform " + runtime.GOOS)
 	}
