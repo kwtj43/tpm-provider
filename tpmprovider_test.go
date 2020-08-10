@@ -1,5 +1,3 @@
-// +build unit_test
-
 /*
  * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: BSD-3-Clause
@@ -8,251 +6,290 @@ package tpmprovider
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
-	OwnerSecretKey       = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	OwnerSecretKey     = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	AikSecretKey       = "beefbeefbeefbeefbeefbeefbeefbeefbeefbeef"
 	BadSecretKey       = "b000b000b000b000b000b000b000b000b000b000"
 	CertifiedKeySecret = "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed"
 )
 
-func createTestTpm(t *testing.T) TpmProvider {
-	tpmFactory, err := NewTpmFactory()
+func createSimulatorAndFactory(t *testing.T) (TpmSimulator, TpmFactory) {
+
+	tpmSimulator := NewTpmSimulator()
+	err := tpmSimulator.Start()
 	if err != nil {
-		t.Fatal(err)
+		assert.FailNowf(t, "Could not start TPM Simulator", "%s", err)
 	}
+
+	tpmFactory, err := NewTpmSimulatorFactory()
+	if err != nil {
+		assert.FailNowf(t, "Could create TPM Factory", "%s", err)
+	}
+
+	return tpmSimulator, tpmFactory
+}
+
+// Creates a new instance of the TPM simulator and TpmProvider.  The simulator
+// is not provisioned with an owner secret or EK Certificate (see createProvisionedSimulatorAndProvider).
+func createSimulatorAndProvider(t *testing.T) (TpmSimulator, TpmProvider) {
+
+	tpmSimulator, tpmFactory := createSimulatorAndFactory(t)
 
 	tpmProvider, err := tpmFactory.NewTpmProvider()
 	if err != nil {
-		t.Fatal(err)
+		assert.FailNowf(t, "Could not create TPM Provider", "%s", err)
 	}
 
-	return tpmProvider
+	return tpmSimulator, tpmProvider
 }
 
-// function used to debug simulator class
-func XXXTestSimulator2(t *testing.T) {
+// Creates a new simulator (un-provisioned) and then takes ownership and
+// provisions an EK Certificate.
+func createProvisionedSimulatorAndProvider(t *testing.T) (TpmSimulator, TpmProvider) {
 
-	for i :=0; i < 20; i++ {
-		fmt.Printf("[[%d]]\n", i)
-		simulator := GetTpmSimulator(t)
-		simulator.Start()
-	
-		tpm := createTestTpm(t)
-		_ = tpm.TakeOwnership(OwnerSecretKey)
-		tpm.Close()
-	
-		simulator.Stop()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+
+	err := tpmProvider.TakeOwnership(OwnerSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
+
+	// Creating an AIK requires an EK which requires an EK Certificate, provision one in the
+	// tpm simulator...
+	err = tpmSimulator.ProvisionEkCertificate(tpmProvider, OwnerSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "Could not provision the EK Certificate in the TPM Simulator", "%s", err)
+	}
+
+	return tpmSimulator, tpmProvider
+}
+
+func TestTpmFactory(t *testing.T) {
+
+	tpmSimulator := NewTpmSimulator()
+	err := tpmSimulator.Start()
+	if err != nil {
+		assert.FailNowf(t, "Could not start TPM Simulator", "%s", err)
+	}
+
+	defer tpmSimulator.Stop()
+
+	tpmFactory, err := NewTpmSimulatorFactory()
+	if err != nil {
+		assert.FailNowf(t, "Could create TPM Factory", "%s", err)
+	}
+
+	for i := 1; i < 5; i++ {
+		t.Log("creating tpm...")
+
+		tpmProvider, err := tpmFactory.NewTpmProvider()
+		if err != nil {
+			assert.FailNowf(t, "Could not create TPM Provider", "%s", err)
+		}
+
+		_, err = tpmProvider.IsOwnedWithAuth(OwnerSecretKey)
+		if err != nil {
+			assert.FailNowf(t, "", "%s", err)
+		}
+
+		tpmProvider.Close()
 	}
 }
 
 func TestTpmVersion(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
-
-	version := tpm.Version()
+	version := tpmProvider.Version()
 	assert.NotEqual(t, version, 0)
-
-	simulator.Stop()
 }
 
 func TestTakeOwnershipWithValidSecretKey(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
-
-	err := tpm.TakeOwnership(OwnerSecretKey)
+	err := tpmProvider.TakeOwnership(OwnerSecretKey)
 	assert.NoError(t, err)
-
-	simulator.Stop()
 }
 
 func TestTakeOwnershipWithEmptySecretKey(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
-
-	err := tpm.TakeOwnership("")
+	err := tpmProvider.TakeOwnership("")
 	assert.Error(t, err)
-
-	simulator.Stop()
 }
 
 func TestTakeOwnershipWithInvalidSecretKey(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
-
-	err := tpm.TakeOwnership("shouldbe40charsofhex")
+	err := tpmProvider.TakeOwnership("shouldbe40charsofhex")
 	assert.Error(t, err)
-
-	simulator.Stop()
 }
 
 func TestIsOwnedWithAuthPositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
-
-	err := tpm.TakeOwnership(OwnerSecretKey)
+	err := tpmProvider.TakeOwnership(OwnerSecretKey)
 	assert.NoError(t, err)
 
-	owned, err := tpm.IsOwnedWithAuth(OwnerSecretKey)
+	owned, err := tpmProvider.IsOwnedWithAuth(OwnerSecretKey)
 	assert.NoError(t, err)
 	assert.True(t, owned)
-
-	simulator.Stop()
 }
 
 func TestIsOwnedWithAuthNegative(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
-
-	err := tpm.TakeOwnership(OwnerSecretKey)
+	err := tpmProvider.TakeOwnership(OwnerSecretKey)
 	assert.NoError(t, err)
 
-	owned, err := tpm.IsOwnedWithAuth(BadSecretKey)
+	owned, err := tpmProvider.IsOwnedWithAuth(BadSecretKey)
 	assert.NoError(t, err)
 	assert.False(t, owned)
-
-	simulator.Stop()
 }
 
 func TestCreateAikPositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	err := tpm.TakeOwnership(OwnerSecretKey)
+	isValidEk, err := tpmProvider.IsValidEk(OwnerSecretKey, TPM_HANDLE_EK, NV_IDX_RSA_ENDORSEMENT_CERTIFICATE)
+	if err != nil {
+		assert.FailNowf(t, "Error validating EK", "%s", err)
+	}
+
+	if !isValidEk {
+		assert.FailNowf(t, "The EK is not valid", "%s", err)
+	}
+
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
 	assert.NoError(t, err)
-
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
-
-	simulator.Stop()
 }
 
 func TestGetAikBytesPositive(t *testing.T) {
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
+	// create the EK and AIK
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	output, err := tpm.GetAikBytes()
+	output, err := tpmProvider.GetAikBytes()
 	assert.NoError(t, err)
 	assert.NotEqual(t, len(output), 0)
-
-	simulator.Stop()
 }
 
 func TestGetAikNamePositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
+	// create the EK and AIK
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
-
-	output, err := tpm.GetAikName()
+	output, err := tpmProvider.GetAikName()
 	assert.NoError(t, err)
 	assert.NotEqual(t, len(output), 0)
-
-	simulator.Stop()
 }
 
 func TestActivateCredentialInvalidOwnerSecret(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
+	// create the EK and AIK
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
-
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
 	credentialBytes := make([]byte, 20)
 	secretBytes := make([]byte, 20)
 
 	// just testing the secret key at this time...
-	_, err = tpm.ActivateCredential(BadSecretKey, AikSecretKey, credentialBytes, secretBytes)
+	_, err = tpmProvider.ActivateCredential(BadSecretKey, AikSecretKey, credentialBytes, secretBytes)
 	assert.Error(t, err)
-
-	simulator.Stop()
 }
 
 func TestTpmQuotePositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	assert.NotEqual(t, tpm, nil)
-	defer tpm.Close()
+	// create the EK and AIK
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	// take ownership
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	// create an aik in the tpm
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
-
+	// Test quote
 	nonce, _ := base64.StdEncoding.DecodeString("ZGVhZGJlZWZkZWFkYmVlZmRlYWRiZWVmZGVhZGJlZWZkZWFkYmVlZiA=")
 	pcrs := []int{0, 1, 2, 3, 18, 19, 22}
 	pcrBanks := []string{"SHA1", "SHA256"}
-	quoteBytes, err := tpm.GetTpmQuote(AikSecretKey, nonce, pcrBanks, pcrs)
+	quoteBytes, err := tpmProvider.GetTpmQuote(AikSecretKey, nonce, pcrBanks, pcrs)
 	assert.NoError(t, err)
 	assert.NotEqual(t, len(quoteBytes), 0)
-
-	simulator.Stop()
 }
 
 // Similar to...
@@ -261,77 +298,64 @@ func TestTpmQuotePositive(t *testing.T) {
 // tpm2_nvread -P hex:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef -x 0x1c10110 -a 0x40000001 -o 0 -f /tmp/quote_nv.bin
 func TestNvRamPositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
-
-	tpm := createTestTpm(t)
-	assert.NotEqual(t, tpm, nil)
-	defer tpm.Close()
+	tpmSimulator, tpmProvider := createSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
 	// take ownership
-	err := tpm.TakeOwnership(OwnerSecretKey)
+	err := tpmProvider.TakeOwnership(OwnerSecretKey)
 	assert.NoError(t, err)
 
 	// define/read/write/delete some data in nvram
 	idx := uint32(NV_IDX_ASSET_TAG)
-	data, _ := hex.DecodeString("f00df00df00df00df00df00df00df00df00df00df00df00df00df00df00d")
+	data := make([]byte, 1527) // just test something over 1024 bytes which seems to be an issue with physical tpms
 
-	err = tpm.NvDefine(OwnerSecretKey, idx, uint16(len(data)))
+	err = tpmProvider.NvDefine(OwnerSecretKey, idx, uint16(len(data)))
 	assert.NoError(t, err)
 
-	err = tpm.NvWrite(OwnerSecretKey, idx, data)
+	err = tpmProvider.NvWrite(OwnerSecretKey, idx, data)
 	assert.NoError(t, err)
 
-	output, err := tpm.NvRead(OwnerSecretKey, idx)
+	output, err := tpmProvider.NvRead(OwnerSecretKey, idx)
 	assert.NoError(t, err)
 	assert.Equal(t, data, output)
 
-	err = tpm.NvRelease(OwnerSecretKey, idx)
+	err = tpmProvider.NvRelease(OwnerSecretKey, idx)
 	assert.NoError(t, err)
-
-	simulator.Stop()
 }
 
-// CreatePrimaryHandle(ownerSecretKey string, handle uint32) error
 func TestCreatePrimaryHandlePositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	assert.NotEqual(t, tpm, nil)
-	defer tpm.Close()
-
-	// take ownership
-	err := tpm.TakeOwnership(OwnerSecretKey)
+	err := tpmProvider.CreatePrimaryHandle(OwnerSecretKey, TPM_HANDLE_PRIMARY)
 	assert.NoError(t, err)
-
-	err = tpm.CreatePrimaryHandle(OwnerSecretKey, TPM_HANDLE_PRIMARY)
-	assert.NoError(t, err)
-
-	simulator.Stop()
 }
 
 func TestSigningPositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
+	// create the EK and AIK
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	// take ownership
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
-
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
 	// create the primary key used for creating the singing key...
-	err = tpm.CreatePrimaryHandle(OwnerSecretKey, TPM_HANDLE_PRIMARY)
+	err = tpmProvider.CreatePrimaryHandle(OwnerSecretKey, TPM_HANDLE_PRIMARY)
 	assert.NoError(t, err)
 
-	signingKey, err := tpm.CreateSigningKey(CertifiedKeySecret, AikSecretKey)
+	signingKey, err := tpmProvider.CreateSigningKey(CertifiedKeySecret, AikSecretKey)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, signingKey.PublicKey)
 	assert.NotEmpty(t, signingKey.PrivateKey)
@@ -340,37 +364,37 @@ func TestSigningPositive(t *testing.T) {
 	assert.NotEmpty(t, signingKey.KeyName)
 	assert.Equal(t, signingKey.Usage, Signing)
 	assert.Equal(t, signingKey.Version, V20)
-	
+
 	// just hash some bytes (in this case the aik secret key) and make sure
 	// no error occurs and bytes are returned
 	hashToSign := make([]byte, 32, 32)
-	signedBytes, err := tpm.Sign(signingKey, CertifiedKeySecret, hashToSign)
+	signedBytes, err := tpmProvider.Sign(signingKey, CertifiedKeySecret, hashToSign)
 	assert.NoError(t, err)
 	assert.NotEqual(t, len(signedBytes), 0)
-
-	simulator.Stop()
 }
 
 func TestBindingPositive(t *testing.T) {
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
+	tpmSimulator, tpmProvider := createProvisionedSimulatorAndProvider(t)
+	defer tpmSimulator.Stop()
+	defer tpmProvider.Close()
 
-	tpm := createTestTpm(t)
-	defer tpm.Close()
+	// create the EK and AIK
+	err := tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
-	// take ownership
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
-
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
 
 	// create the primary key used for creating the singing key...
-	err = tpm.CreatePrimaryHandle(OwnerSecretKey, TPM_HANDLE_PRIMARY)
+	err = tpmProvider.CreatePrimaryHandle(OwnerSecretKey, TPM_HANDLE_PRIMARY)
 	assert.NoError(t, err)
 
-	bindingKey, err := tpm.CreateBindingKey(CertifiedKeySecret, AikSecretKey)
+	bindingKey, err := tpmProvider.CreateBindingKey(CertifiedKeySecret, AikSecretKey)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, bindingKey.PublicKey)
 	assert.NotEmpty(t, bindingKey.PrivateKey)
@@ -379,42 +403,55 @@ func TestBindingPositive(t *testing.T) {
 	assert.NotEmpty(t, bindingKey.KeyName)
 	assert.Equal(t, bindingKey.Usage, Binding)
 	assert.Equal(t, bindingKey.Version, V20)
-	
+
 	// just hash some bytes (in this case the aik secret key) and make sure
 	// no error occurs and bytes are returned
 	// tpmprovider.sign uses rsa/sha256, hash needs be 32 bytes long
 	// encryptedBytes := make([]byte, 32, 32)
-	// decryptedBytes, err := tpm.Unbind(bindingKey, CertifiedKeySecret, encryptedBytes)
+	// decryptedBytes, err := tpmProvider.Unbind(bindingKey, CertifiedKeySecret, encryptedBytes)
 	// assert.NoError(t, err)
 	// assert.NotEqual(t, len(decryptedBytes), 0)
-
-	simulator.Stop()
 }
 
-// spawns multiple quote threads
 func TestMultiThreadedQuote(t *testing.T) {
+
+	// This unit test is being skipped since it because deadlock occurs when the TSS2 is
+	// configured to use the mssim tcti directoy (i.e. NewTpmSimulatorFactory).  The test will pass if
+	// it is run against tpm-abrmd via NewTpmFactory().
+	t.Skip()
 
 	rand.Seed(43)
 	var wg sync.WaitGroup
 
-	simulator := GetTpmSimulator(t)
-	simulator.Start()
-
-	tpm := createTestTpm(t)
-	assert.NotEqual(t, tpm, nil)
-	defer tpm.Close()
-
-	// take ownership
-	err := tpm.TakeOwnership(OwnerSecretKey)
-	assert.NoError(t, err)
-
-	// create an aik in the tpm
-	err = tpm.CreateAik(OwnerSecretKey, AikSecretKey)
-	assert.NoError(t, err)
-
 	tpmFactory, err := NewTpmFactory()
-	assert.NoError(t, err)
-	assert.NotEqual(t, tpmFactory, nil)
+	if err != nil {
+		assert.FailNowf(t, "Could not create TPM Factory", "%s", err)
+	}
+
+	// Provision the TPM to support quotes...
+	tpmProvider, err := tpmFactory.NewTpmProvider()
+	if err != nil {
+		assert.FailNowf(t, "Could not create TPM Provider", "%s", err)
+	}
+
+	err = tpmProvider.TakeOwnership(OwnerSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
+
+	// create the EK and AIK
+	err = tpmProvider.CreateEk(OwnerSecretKey, TPM_HANDLE_EK)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
+
+	err = tpmProvider.CreateAik(OwnerSecretKey, AikSecretKey)
+	if err != nil {
+		assert.FailNowf(t, "", "%s", err)
+	}
+
+	// close the tpmprovider that did provisioning (this isn't multithreaded in the real world)
+	tpmProvider.Close()
 
 	for i := 0; i < 20; i++ {
 		wg.Add(1)
@@ -428,6 +465,7 @@ func TestMultiThreadedQuote(t *testing.T) {
 
 			tpm, err := tpmFactory.NewTpmProvider()
 			assert.NoError(t, err)
+			defer tpm.Close()
 
 			nonce, _ := base64.StdEncoding.DecodeString("ZGVhZGJlZWZkZWFkYmVlZmRlYWRiZWVmZGVhZGJlZWZkZWFkYmVlZiA=")
 			pcrs := []int{0, 1, 2, 3, 18, 19, 22}
@@ -442,6 +480,4 @@ func TestMultiThreadedQuote(t *testing.T) {
 	}
 
 	wg.Wait()
-
-	simulator.Stop()
 }

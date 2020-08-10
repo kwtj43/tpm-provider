@@ -5,11 +5,8 @@ before_script:
   - export http_proxy="${HTTP_PROXY}"
   - export https_proxy="${HTTPS_PROXY}"
   - export no_proxy="${NO_PROXY}"
-
-# the gta-unit-test is a container that remains alive across builds/tests.  clean up
-# the gitlab url otherwise they accumulate and expire
-after_script:
-  - git config --global --unset url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${GITLAB_SERVER}".insteadOf
+  - env
+  - git config --list
 
 stages:
   - build
@@ -17,9 +14,9 @@ stages:
 
 build:gta:
   stage: build
-  image: gta-devel
+  image: tpm-devel
   tags:
-    - gta
+    - tpm-devel
   script:
     - make
   artifacts:
@@ -28,12 +25,12 @@ build:gta:
 
 test:
   stage: test
-  image: gta-devel
+  image: tpm-devel
   tags:
-    - gta-unit-test
+    - tpm-devel
   script:
     - export CGO_CFLAGS_ALLOW="-f.*"
-    - go test ./... -tags=unit_test -coverpkg=./... -coverprofile out/cover.out
+    - go test ./... -coverpkg=./... -coverprofile out/cover.out
     - go tool cover -func out/cover.out
     - go tool cover -html=out/cover.out -o out/cover.html
   artifacts:

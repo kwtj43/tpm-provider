@@ -18,19 +18,21 @@ typedef enum TPM_VERSION
 typedef enum TCTI_TYPE
 {
     TCTI_ABRMD,
-    TCTI_DEVICE
+    TCTI_DEVICE,
+    TCTI_MSSIM,
 } TCTI_TYPE;
 
 typedef enum NV_IDX 
 {
-    NV_IDX_ENDORSEMENT_KEY  = 0x1c00002,
-    NV_IDX_ASSET_TAG        = 0x1c10110
+    NV_IDX_RSA_ENDORSEMENT_CERTIFICATE  = 0x1c00002,
+    NV_IDX_ECC_ENDORSEMENT_CERTIFICATE  = 0x1c0000a,
+    NV_IDX_ASSET_TAG                    = 0x1c10110
 } NV_IDX;
 
 typedef enum TPM_HANDLE 
 {
     TPM_HANDLE_PRIMARY  = 0x81000000,
-    TPM_HANDLE_EK_CERT  = 0x81010000,
+    TPM_HANDLE_EK       = 0x81010000,
     TPM_HANDLE_AIK      = 0x81018000,
 } TPM_HANDLE;
 
@@ -39,6 +41,12 @@ typedef enum TPM_CERTIFIED_KEY_USAGE
     TPM_CERTIFIED_KEY_USAGE_BINDING = 0,
     TPM_CERTIFIED_KEY_USAGE_SIGNING,
 } TPM_CERTIFIED_KEY_USAGE;
+
+typedef enum TPM_PROVIDER_ERROR
+{
+    TPM_PROVIDER_ERROR_NO_EK_CERT = 0x100000,
+    TPM_PROVIDER_EK_PUBLIC_MISMATCH,
+} TPM_PROVIDER_ERROR;
 
 typedef struct CertifiedKey {
     struct {
@@ -65,7 +73,7 @@ typedef struct CertifiedKey {
 
 typedef struct tpmCtx tpmCtx;
 
-tpmCtx* TpmCreate(uint tctiType);
+tpmCtx* TpmCreate(unsigned int tctiType);
 
 void TpmDelete(tpmCtx* ctx);
 
@@ -119,6 +127,11 @@ int CreatePrimaryHandle(const tpmCtx* ctx,
                         uint32_t persistHandle, 
                         const uint8_t* ownerSecretKey, 
                         size_t ownerSecretKeyLength);
+
+int CreateEk(const tpmCtx* ctx, 
+             const uint8_t* ownerSecretKey, 
+             size_t ownerSecretKeyLength, 
+             uint32_t ekHandle);
 
 int NvIndexExists(const tpmCtx* ctx, uint32_t nvIndex);
 
@@ -181,4 +194,16 @@ int Sign(const tpmCtx* ctx,
 
 int PublicKeyExists(const tpmCtx* ctx, 
                     uint32_t handle);
+
+int ReadPublic(const tpmCtx* ctx, 
+               uint32_t handle,
+               uint8_t** const publicBytes, 
+               int* const publicBytesLength);
+
+int IsValidEk(const tpmCtx* ctx, 
+              const uint8_t* ownerSecretKey, 
+              size_t ownerSecretKeyLenth, 
+              uint32_t handle, 
+              uint32_t ekCertificateIndex);
+
 #endif
