@@ -73,7 +73,7 @@ typedef struct CertifiedKey {
 
 typedef struct tpmCtx tpmCtx;
 
-tpmCtx* TpmCreate(unsigned int tctiType);
+tpmCtx* TpmCreate(unsigned int tctiType, const char* conf);
 
 void TpmDelete(tpmCtx* ctx);
 

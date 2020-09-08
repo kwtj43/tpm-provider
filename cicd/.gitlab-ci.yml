@@ -29,10 +29,7 @@ test:
   tags:
     - tpm-devel
   script:
-    - export CGO_CFLAGS_ALLOW="-f.*"
-    - go test ./... -coverpkg=./... -coverprofile out/cover.out
-    - go tool cover -func out/cover.out
-    - go tool cover -html=out/cover.out -o out/cover.html
+    - make unit_test
   artifacts:
     paths:
       - "out/cover.html"

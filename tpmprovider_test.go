@@ -30,7 +30,7 @@ func createSimulatorAndFactory(t *testing.T) (TpmSimulator, TpmFactory) {
 		assert.FailNowf(t, "Could not start TPM Simulator", "%s", err)
 	}
 
-	tpmFactory, err := NewTpmSimulatorFactory()
+	tpmFactory, err := NewTpmFactory()
 	if err != nil {
 		assert.FailNowf(t, "Could create TPM Factory", "%s", err)
 	}
@@ -83,7 +83,7 @@ func TestTpmFactory(t *testing.T) {
 
 	defer tpmSimulator.Stop()
 
-	tpmFactory, err := NewTpmSimulatorFactory()
+	tpmFactory, err := NewTpmFactory()
 	if err != nil {
 		assert.FailNowf(t, "Could create TPM Factory", "%s", err)
 	}
@@ -416,7 +416,7 @@ func TestBindingPositive(t *testing.T) {
 func TestMultiThreadedQuote(t *testing.T) {
 
 	// This unit test is being skipped since it because deadlock occurs when the TSS2 is
-	// configured to use the mssim tcti directoy (i.e. NewTpmSimulatorFactory).  The test will pass if
+	// configured to use the mssim tcti directory.  The test will pass if
 	// it is run against tpm-abrmd via NewTpmFactory().
 	t.Skip()
 

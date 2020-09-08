@@ -4,14 +4,14 @@
  */
 #include "tpm20linux.h"
 
-tpmCtx* TpmCreate(unsigned int tctiType)
+tpmCtx* TpmCreate(unsigned int tctiType, const char* conf)
 {
     tpmCtx* ctx = NULL;
     size_t size = 0;
     TSS2_RC rc = 0;
     TSS2_ABI_VERSION abiVersion = {0};
-    char* conf = NULL;
-    
+    const char* tss2Conf = conf;
+
     if (tctiType != TCTI_ABRMD && tctiType != TCTI_DEVICE && tctiType != TCTI_MSSIM) 
     {
         ERROR("Incorrect tcti type: %d\n", tctiType);
@@ -29,12 +29,18 @@ tpmCtx* TpmCreate(unsigned int tctiType)
 
     if (tctiType == TCTI_DEVICE) 
     {
-        conf = "/dev/tpm0";
+        if (tss2Conf == NULL) {
+            tss2Conf = "/dev/tpm0";
+        }
+
         rc = Tss2_Tcti_Device_Init (NULL, &size, NULL);
     }
     else if (tctiType == TCTI_MSSIM)
     {
-        conf = "host=localhost,port=2321";
+        if (tss2Conf == NULL) {
+            tss2Conf = "host=localhost,port=2321";
+        }
+
         Tss2_Tcti_Mssim_Init(NULL, &size, NULL);
     }
     else
