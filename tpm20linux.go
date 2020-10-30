@@ -10,7 +10,7 @@ package tpmprovider
 //// The following CFLAGS require 'export CGO_CFLAGS_ALLOW="-f.*"' in the executable that
 //// uses tpm-provider (i.e. go-trust-agent and workload-agent).
 // #cgo CFLAGS: -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv -fstack-protector-strong
-// #cgo LDFLAGS: -ltss2-sys -ltss2-tcti-tabrmd -ltss2-mu -lssl -lcrypto -ltss2-tcti-device -ltss2-tcti-mssim
+// #cgo LDFLAGS: -L/usr/local/ssl/lib/ -ltss2-sys -ltss2-tcti-tabrmd -ltss2-mu -lssl -lcrypto -ltss2-tcti-device -ltss2-tcti-mssim
 // #include "tpm.h"
 import "C"
 
@@ -472,7 +472,7 @@ func (tpm *tpm20Linux) CreatePrimaryHandle(ownerSecretKey string, handle uint32)
 		C.size_t(len(ownerSecretKeyBytes)))
 
 	if rc != 0 {
-		return fmt.Errorf("CreatePrimaryHandle returned error code %x", rc)
+		return fmt.Errorf("CreatePrimaryHandle returned error code 0x%x", rc)
 	}
 
 	return nil
@@ -545,7 +545,7 @@ func (t *tpm20Linux) createCertifiedKey(keySecret string, aikSecretKey string, k
 		}, nil
 	}
 
-	return nil, fmt.Errorf("CreateCertifiedKey returned error code: %x", rc)
+	return nil, fmt.Errorf("CreateCertifiedKey returned error code: 0x%x", rc)
 }
 
 func (t *tpm20Linux) Unbind(certifiedKey *CertifiedKey, bindingSecretKey string, encryptedData []byte) ([]byte, error) {
@@ -571,7 +571,7 @@ func (t *tpm20Linux) Unbind(certifiedKey *CertifiedKey, bindingSecretKey string,
 		&decryptedBytesLength)
 
 	if rc != 0 {
-		return nil, fmt.Errorf("Unbind returned error code %x", rc)
+		return nil, fmt.Errorf("Unbind returned error code 0x%x", rc)
 	}
 
 	defer C.free(unsafe.Pointer(decryptedBytes))
@@ -619,7 +619,7 @@ func (t *tpm20Linux) Sign(certifiedKey *CertifiedKey, signingSecretKey string, h
 		&signatureBytesLength)
 
 	if rc != 0 {
-		return nil, fmt.Errorf("Sign returned error code %x", rc)
+		return nil, fmt.Errorf("Sign returned error code 0x%x", rc)
 	}
 
 	defer C.free(unsafe.Pointer(signatureBytes))
