@@ -18,7 +18,7 @@
 func NewTpmFactory() (TpmFactory, error) {
 
 	if runtime.GOOS == "linux" {
-		return linuxTpmFactory{tctiType: TCTI_DEVICE}, nil
+		return linuxTpmFactory{tctiType: TCTI_ABRMD}, nil
 	} else {
 		return nil, errors.New("Unsupported tpm factory platform " + runtime.GOOS)
 	}
