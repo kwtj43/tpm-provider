@@ -353,7 +353,7 @@ func (t *tpm20Linux) NvDefine(ownerSecretKey string, nvIndex uint32, indexSize u
 
 	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
 	if err != nil {
-		errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
 	}
 
 	rc := C.NvDefine(t.tpmCtx,
@@ -463,7 +463,7 @@ func (tpm *tpm20Linux) CreatePrimaryHandle(ownerSecretKey string, handle uint32)
 
 	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
 	if err != nil {
-		errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
 	}
 
 	rc := C.CreatePrimaryHandle(tpm.tpmCtx,
@@ -482,7 +482,7 @@ func (tpm *tpm20Linux) CreateEk(ownerSecretKey string, handle uint32) error {
 
 	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
 	if err != nil {
-		errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+		return errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
 	}
 
 	rc := C.CreateEk(tpm.tpmCtx,
@@ -666,7 +666,7 @@ func (t *tpm20Linux) IsValidEk(ownerSecretKey string, handle uint32, nvIndex uin
 
 	ownerSecretKeyBytes, err := validateAndConvertKey(ownerSecretKey)
 	if err != nil {
-		errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
+		return false, errors.Wrap(err, INVALID_OWNER_SECRET_KEY)
 	}
 
 	rval := C.IsValidEk(t.tpmCtx,
