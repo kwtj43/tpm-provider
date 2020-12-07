@@ -5,9 +5,10 @@
 package tpmprovider
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"sync"
 	"testing"
 	"time"
@@ -420,7 +421,6 @@ func TestMultiThreadedQuote(t *testing.T) {
 	// it is run against tpm-abrmd via NewTpmFactory().
 	t.Skip()
 
-	rand.Seed(43)
 	var wg sync.WaitGroup
 
 	tpmFactory, err := NewTpmFactory()
@@ -459,9 +459,10 @@ func TestMultiThreadedQuote(t *testing.T) {
 			defer wg.Done()
 
 			// generate some sleep somewhere under a second
-			sleep := rand.Int63n(1000)
+			sleep, err := rand.Int(rand.Reader, big.NewInt(1000))
+			assert.NoError(t, err)
 			fmt.Printf("Thread[%d]: Sleeping for %d milliseconds\n", threadNum, sleep)
-			time.Sleep(time.Duration(sleep))
+			time.Sleep(time.Duration(sleep.Int64()))
 
 			tpm, err := tpmFactory.NewTpmProvider()
 			assert.NoError(t, err)
