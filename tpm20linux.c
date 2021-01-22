@@ -10,7 +10,6 @@ tpmCtx* TpmCreate(unsigned int tctiType, const char* conf)
     size_t size = 0;
     TSS2_RC rc = 0;
     TSS2_ABI_VERSION abiVersion = {0};
-    const char* tss2Conf = conf;
 
     if (tctiType != TCTI_ABRMD && tctiType != TCTI_DEVICE && tctiType != TCTI_MSSIM) 
     {
@@ -29,16 +28,16 @@ tpmCtx* TpmCreate(unsigned int tctiType, const char* conf)
 
     if (tctiType == TCTI_DEVICE) 
     {
-        if (tss2Conf == NULL) {
-            tss2Conf = "/dev/tpm0";
+        if (conf == NULL) {
+            conf = "/dev/tpmrm0";
         }
 
         rc = Tss2_Tcti_Device_Init (NULL, &size, NULL);
     }
     else if (tctiType == TCTI_MSSIM)
     {
-        if (tss2Conf == NULL) {
-            tss2Conf = "host=localhost,port=2321";
+        if (conf == NULL) {
+            conf = "host=localhost,port=2321";
         }
 
         Tss2_Tcti_Mssim_Init(NULL, &size, NULL);
