@@ -6,3 +6,5 @@ require (
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/tools v0.0.0-20191115173008-1c71899d35ca // indirect
 )
+
+go 1.13

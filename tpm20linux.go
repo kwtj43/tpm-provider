@@ -9,8 +9,9 @@ package tpmprovider
 
 //// The following CFLAGS require 'export CGO_CFLAGS_ALLOW="-f.*"' in the executable that
 //// uses tpm-provider (i.e. go-trust-agent and workload-agent).
-// #cgo CFLAGS: -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv -fstack-protector-strong
-// #cgo LDFLAGS: -ltss2-sys -ltss2-tcti-tabrmd -ltss2-mu -lssl -lcrypto -ltss2-tcti-device -ltss2-tcti-mssim
+// #cgo CFLAGS: -I/docker_host/tpm2-tss/include -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv -fstack-protector-strong
+// #cgo LDFLAGS: -L out -ltss2-sys -ltss2-mu -ltss2-tcti-device -ltss2-tcti-mssim -lcrypto 
+//// #cgo LDFLAGS: -l/tpm2-tss/src/tss2-sys/.libs/libtss2-sys.a  -l/docker_host/tpm2-tss/src/tss2-mu/.libs/libtss2-mu.a -l/docker_host/tpm2-tss/src/tss2-tcti/.libs/libtss2-tcti-device.a -lssl -lcrypto 
 // #include "tpm.h"
 import "C"
 

@@ -48,7 +48,8 @@ static int GetEkCertificatePublicBytesRSA(const tpmCtx* ctx, TPM2B_AUTH *ownerAu
         goto error;
     }
 
-    RSA_get0_key(rsaPub, &n, NULL, NULL);
+    // TODO....
+    //RSA_get0_key(rsaPub, &n, NULL, NULL);
 
     len = BN_num_bytes(n);
     if (len < 20 || len > 4096) // assume between SHA1 (20) and sha512 (4096) bytes
